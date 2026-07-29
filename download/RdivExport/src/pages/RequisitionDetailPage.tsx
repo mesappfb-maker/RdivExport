@@ -39,7 +39,7 @@ export default function RequisitionDetailPage() {
     if (!id || !profile) return
     setShowDeleteDialog(false)
     setActionLoading(true)
-    await updateStatus(id, 'cancelled', profile.user_id, 'Supprimee par l\'utilisateur')
+    await updateStatus(id, 'cancelled', profile.id, 'Supprimee par l\'utilisateur')
     setActionLoading(false)
     navigate(-1)
   }, [id, profile, updateStatus, navigate])
@@ -48,7 +48,7 @@ export default function RequisitionDetailPage() {
     if (!id || !profile) return
     setShowCancelDialog(false)
     setActionLoading(true)
-    await updateStatus(id, 'cancelled', profile.user_id, cancelReason.trim() || undefined)
+    await updateStatus(id, 'cancelled', profile.id, cancelReason.trim() || undefined)
     setActionLoading(false)
     setCancelReason('')
   }, [id, profile, cancelReason, updateStatus])

@@ -27,7 +27,6 @@ export interface PharmacyRow {
 
 export interface ProfileRow {
   id: UUID
-  user_id: UUID
   full_name: string
   email: string
   phone: string | null
@@ -120,7 +119,6 @@ export interface PharmacyInsert {
 
 export interface ProfileInsert {
   id?: UUID
-  user_id: UUID
   full_name: string
   email: string
   phone?: string | null
@@ -291,25 +289,25 @@ export interface Database {
             foreignKeyName: 'requisitions_created_by_fkey'
             columns: ['created_by']
             referencedRelation: 'profiles'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           },
           {
             foreignKeyName: 'requisitions_validated_by_fkey'
             columns: ['validated_by']
             referencedRelation: 'profiles'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           },
           {
             foreignKeyName: 'requisitions_delivered_by_fkey'
             columns: ['delivered_by']
             referencedRelation: 'profiles'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           },
           {
             foreignKeyName: 'requisitions_cancelled_by_fkey'
             columns: ['cancelled_by']
             referencedRelation: 'profiles'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           }
         ]
       }
@@ -347,7 +345,7 @@ export interface Database {
             foreignKeyName: 'delivery_checklists_delivered_by_fkey'
             columns: ['delivered_by']
             referencedRelation: 'profiles'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           }
         ]
       }
@@ -360,7 +358,7 @@ export interface Database {
             foreignKeyName: 'audit_logs_user_id_fkey'
             columns: ['user_id']
             referencedRelation: 'profiles'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           }
         ]
       }

@@ -48,7 +48,6 @@ function mapRowToProfile(
 ): Profile {
   return {
     id: row.id,
-    user_id: row.user_id,
     full_name: row.full_name,
     email: row.email,
     phone: row.phone ?? undefined,
@@ -212,7 +211,7 @@ export async function getCurrentProfile(
     const { data, error } = await supabase
       .from('profiles')
       .select('*, pharmacies(*)')
-      .eq('user_id', targetUserId)
+      .eq('id', targetUserId)
       .single()
 
     if (error) {
@@ -280,7 +279,7 @@ export async function updateProfile(
     const { data: profileData, error } = await supabase
       .from('profiles')
       .update(data)
-      .eq('user_id', targetUserId)
+      .eq('id', targetUserId)
       .select('*, pharmacies(*)')
       .single()
 

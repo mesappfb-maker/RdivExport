@@ -3,16 +3,10 @@
 // l'accès aux routes protégées. Redirige vers /login si non authentifié, ou vers
 // le tableau de bord approprié si le rôle ne correspond pas.
 
-import { type ReactNode } from 'react'
+import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-interface ProtectedRouteProps {
-  children: ReactNode
-}
 
 // ─── Rôle → Routes autorisées ───────────────────────────────────────────────
 
@@ -30,7 +24,8 @@ const MAIN_REQUISITIONIST_ROUTES = [
 
 // ─── Composant ──────────────────────────────────────────────────────────────
 
-export function ProtectedRoute({ children }: ProtectedRouteProps): ReactNode {
+export function ProtectedRoute(props: { children: React.ReactNode }): React.ReactElement {
+  const { children } = props
   const { state } = useAuth()
   const location = useLocation()
 
