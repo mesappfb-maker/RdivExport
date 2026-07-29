@@ -3,14 +3,13 @@
 // basculement des coches, et soumission finale.
 
 import { useState, useCallback } from 'react'
-import type { Requisition, RequisitionItem } from '@/types'
+import type { Requisition } from '@/types'
 import type { UUID } from '@/types/database'
 import {
   getRequisitionById,
   updateDeliveryChecklist,
 } from '@/services/requisitions.service'
 import type { DeliveryChecklistItem } from '@/services/requisitions.service'
-import { supabase } from '@/lib/supabase'
 
 // --- Types ------------------------------------------------------------------
 

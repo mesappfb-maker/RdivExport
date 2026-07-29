@@ -3,7 +3,6 @@
 // liste de toutes les requisitions.
 
 import { useEffect, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useRequisitions } from '@/hooks/useRequisitions'
 import { getAllPharmacies } from '@/services/pharmacies.service'
 import { RequisitionCard } from '@/components/RequisitionCard'
@@ -25,8 +24,6 @@ const STATUS_FILTER_OPTIONS: Array<{ value: RequisitionStatus | ''; label: strin
 // --- Composant ----------------------------------------------------------------
 
 export default function AdminDashboard() {
-  const navigate = useNavigate()
-
   const { requisitions, loading, error, fetchAllRequisitions } = useRequisitions()
 
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([])

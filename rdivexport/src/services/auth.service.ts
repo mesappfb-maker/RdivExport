@@ -8,7 +8,6 @@ import type { UUID } from '@/types/database'
 import type {
   Session,
   User,
-  Subscription,
 } from '@supabase/supabase-js'
 
 // ─── Types internes ────────────────────────────────────────────────────────
@@ -60,15 +59,15 @@ function mapRowToProfile(
           id: row.pharmacies.id,
           name: row.pharmacies.name,
           code: row.pharmacies.code,
-          address: row.pharmacies.address ?? undefined,
-          phone: row.pharmacies.phone ?? undefined,
-          whatsapp_number: row.pharmacies.whatsapp_number ?? undefined,
-          email: row.pharmacies.email ?? undefined,
+          address: row.pharmacies.address,
+          phone: row.pharmacies.phone,
+          whatsapp_number: row.pharmacies.whatsapp_number,
+          email: row.pharmacies.email,
           is_active: row.pharmacies.is_active,
           created_at: row.pharmacies.created_at,
           updated_at: row.pharmacies.updated_at,
         }
-      : undefined,
+      : null,
     avatar_url: row.avatar_url ?? undefined,
     is_active: row.is_active,
     created_at: row.created_at,
@@ -250,10 +249,11 @@ export async function getCurrentProfile(
  */
 export function onAuthStateChange(
   callback: (event: string, session: Session | null) => void
-): Subscription {
-  return supabase.auth.onAuthStateChange((event, session) => {
+): { unsubscribe: () => void } {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
     callback(event, session)
   })
+  return { unsubscribe: () => subscription.unsubscribe() }
 }
 
 /**
@@ -277,7 +277,7 @@ export async function updateProfile(
       targetUserId = user.id as UUID
     }
 
-    const { data, error } = await supabase
+    const { data: updatedProfile, error } = await supabase
       .from('profiles')
       .update(data)
       .eq('user_id', targetUserId)
@@ -288,14 +288,14 @@ export async function updateProfile(
       return { profile: null, error: error.message }
     }
 
-    if (!data) {
+    if (!updatedProfile) {
       return {
         profile: null,
         error: 'Profil introuvable après la mise à jour',
       }
     }
 
-    return { profile: mapRowToProfile(data), error: null }
+    return { profile: mapRowToProfile(updatedProfile), error: null }
   } catch (err) {
     const message =
       err instanceof Error

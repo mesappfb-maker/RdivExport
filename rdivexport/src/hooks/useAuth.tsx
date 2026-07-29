@@ -187,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen for auth state changes (login in another tab, token refresh, etc.)
   useEffect(() => {
-    const { data: subscription } = authService.onAuthStateChange(
+    const subscription = authService.onAuthStateChange(
       async (_event, session) => {
         if (session?.user) {
           const { profile } = await authService.getCurrentProfile(

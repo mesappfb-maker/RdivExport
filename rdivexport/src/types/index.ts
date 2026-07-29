@@ -21,10 +21,10 @@ export interface Pharmacy {
   id: UUID
   name: string
   code: string
-  address?: string
-  phone?: string
-  whatsapp_number?: string
-  email?: string
+  address: string | null
+  phone: string | null
+  whatsapp_number: string | null
+  email: string | null
   is_active: boolean
   created_at: string
   updated_at: string

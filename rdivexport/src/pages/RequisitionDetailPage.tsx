@@ -150,7 +150,7 @@ export default function RequisitionDetailPage() {
                   <p className="text-sm font-semibold text-gray-900">{formatQuantity(item.quantity_requested)}</p>
                   <p className="text-xs text-gray-400">demande{item.quantity_requested > 1 ? 's' : ''}</p>
                   {(item.quantity_delivered ?? 0) > 0 && (
-                    <p className="text-xs text-green-600">{formatQuantity(item.quantity_delivered)} livre{item.quantity_delivered > 1 ? 's' : ''}</p>
+                    <p className="text-xs text-green-600">{formatQuantity(item.quantity_delivered ?? 0)} livre{(item.quantity_delivered ?? 0) > 1 ? 's' : ''}</p>
                   )}
                 </div>
               </div>
@@ -228,16 +228,19 @@ export default function RequisitionDetailPage() {
         variant="danger"
       />
 
-      <ConfirmDialog
-        isOpen={showCancelDialog}
-        title="Annuler la requisition"
-        message={
-          <div className="space-y-3">
-            <p>Etes-vous sur de vouloir annuler cette requisition ?</p>
-            <div>
-              <label htmlFor="cancel-reason" className="mb-1 block text-xs font-medium text-gray-600">
-                Raison de l\'annulation (optionnel)
-              </label>
+      {showCancelDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowCancelDialog(false); setCancelReason('') }} aria-hidden="true" />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
+              <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+            </div>
+            <h2 className="mb-2 text-lg font-semibold text-gray-900">Annuler la requisition</h2>
+            <p className="mb-4 text-sm leading-relaxed text-gray-600">Etes-vous sur de vouloir annuler cette requisition ?</p>
+            <div className="mb-4">
+              <label htmlFor="cancel-reason" className="mb-1 block text-xs font-medium text-gray-600">Raison de l'annulation (optionnel)</label>
               <input
                 id="cancel-reason"
                 type="text"
@@ -245,17 +248,15 @@ export default function RequisitionDetailPage() {
                 onChange={(e) => setCancelReason(e.target.value)}
                 placeholder="Indiquez la raison..."
                 className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
               />
             </div>
+            <div className="flex flex-col gap-3 sm:flex-row-reverse sm:justify-end">
+              <button type="button" onClick={handleCancel} className="flex h-11 min-h-[44px] items-center justify-center rounded-xl bg-yellow-500 px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2">Annuler</button>
+              <button type="button" onClick={() => { setShowCancelDialog(false); setCancelReason('') }} className="flex h-11 min-h-[44px] items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">Retour</button>
+            </div>
           </div>
-        }
-        onConfirm={handleCancel}
-        onCancel={() => { setShowCancelDialog(false); setCancelReason('') }}
-        confirmLabel="Annuler"
-        variant="warning"
-      />
+        </div>
+      )}
     </div>
   )
 }

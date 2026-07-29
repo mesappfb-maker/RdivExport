@@ -2,7 +2,7 @@
 // Modale de confirmation centrée avec overlay semi-transparent.
 // Utilisée pour les actions destructrices (suppression, annulation, etc.)
 
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

@@ -70,7 +70,7 @@ export function SearchBar({ onSelect, placeholder = 'Rechercher un produit…' }
 
   // ── Fermer le dropdown au clic extérieur ──
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: Event) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false)
       }
