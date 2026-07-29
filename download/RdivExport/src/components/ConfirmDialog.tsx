@@ -2,7 +2,7 @@
 // Modale de confirmation centrée avec overlay semi-transparent.
 // Utilisée pour les actions destructrices (suppression, annulation, etc.)
 
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -15,6 +15,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string
   cancelLabel?: string
   variant?: 'danger' | 'warning' | 'default'
+  messageExtra?: React.ReactNode
 }
 
 // ─── Classes de variante ────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ export function ConfirmDialog({
   confirmLabel = 'Confirmer',
   cancelLabel = 'Annuler',
   variant = 'danger',
+  messageExtra,
 }: ConfirmDialogProps) {
   const confirmButtonRef = useRef<HTMLButtonElement>(null)
   const previousActiveElement = useRef<Element | null>(null)
@@ -130,13 +132,16 @@ export function ConfirmDialog({
         {/* Message */}
         <p
           id="confirm-dialog-message"
-          className="mb-6 text-sm leading-relaxed text-gray-600"
+          className="text-sm leading-relaxed text-gray-600"
         >
           {message}
         </p>
+        {messageExtra && (
+          <div className="mt-3">{messageExtra}</div>
+        )}
 
         {/* Boutons */}
-        <div className="flex flex-col gap-3 sm:flex-row-reverse sm:justify-end">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row-reverse sm:justify-end">
           <button
             ref={confirmButtonRef}
             type="button"

@@ -8,7 +8,6 @@ import type { UUID } from '@/types/database'
 import type {
   Session,
   User,
-  Subscription,
 } from '@supabase/supabase-js'
 
 // ─── Types internes ────────────────────────────────────────────────────────
@@ -250,10 +249,11 @@ export async function getCurrentProfile(
  */
 export function onAuthStateChange(
   callback: (event: string, session: Session | null) => void
-): Subscription {
-  return supabase.auth.onAuthStateChange((event, session) => {
+): { unsubscribe: () => void } {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
     callback(event, session)
   })
+  return { unsubscribe: () => subscription.unsubscribe() }
 }
 
 /**
@@ -277,7 +277,7 @@ export async function updateProfile(
       targetUserId = user.id as UUID
     }
 
-    const { data, error } = await supabase
+    const { data: profileData, error } = await supabase
       .from('profiles')
       .update(data)
       .eq('user_id', targetUserId)
@@ -288,14 +288,14 @@ export async function updateProfile(
       return { profile: null, error: error.message }
     }
 
-    if (!data) {
+    if (!profileData) {
       return {
         profile: null,
         error: 'Profil introuvable après la mise à jour',
       }
     }
 
-    return { profile: mapRowToProfile(data), error: null }
+    return { profile: mapRowToProfile(profileData as any), error: null }
   } catch (err) {
     const message =
       err instanceof Error

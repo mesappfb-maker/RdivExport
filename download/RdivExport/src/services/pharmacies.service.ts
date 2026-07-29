@@ -114,12 +114,13 @@ export async function getPharmacyByUserId(
       return { data: null, error: profileError.message }
     }
 
-    if (!profile || !profile.pharmacy_id) {
+    const profileAny = profile as any
+    if (!profileAny || !profileAny.pharmacy_id) {
       return { data: null, error: 'Aucune pharmacie associée à cet utilisateur' }
     }
 
     // Récupérer la pharmacie complète
-    return await getPharmacyById(profile.pharmacy_id)
+    return await getPharmacyById(profileAny.pharmacy_id)
   } catch (err) {
     const message =
       err instanceof Error

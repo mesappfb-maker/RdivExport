@@ -3,7 +3,6 @@
 // Permet la modification de la quantité et la suppression de l'élément.
 
 import { useCallback } from 'react'
-import { formatQuantity } from '@/utils/formatters'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

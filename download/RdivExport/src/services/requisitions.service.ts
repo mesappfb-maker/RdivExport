@@ -133,6 +133,21 @@ function mapRowToRequisition(row: RequisitionRowWithJoins): Requisition {
   }
 }
 
+function mapDbPharmacyToPharmacy(row: any): Pharmacy {
+  return {
+    id: row.id,
+    name: row.name,
+    code: row.code,
+    address: row.address ?? undefined,
+    phone: row.phone ?? undefined,
+    whatsapp_number: row.whatsapp_number ?? undefined,
+    email: row.email ?? undefined,
+    is_active: row.is_active,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
 /** Transforme une ligne d'item en objet métier avec produit associé */
 function mapRowToRequisitionItem(
   row: RequisitionItemRowWithProduct,
@@ -348,7 +363,7 @@ export async function getRequisitionsByPharmacy(
       (dataResult.data ?? []).map(async (row) => {
         const r = row as unknown as RequisitionRowWithJoins & { pharmacies: NonNullable<RequisitionRowWithJoins['pharmacies']> }
         const items = await getRequisitionItems(r.id)
-        return enrichRequisition(r, r.pharmacies, items)
+        return enrichRequisition(r, mapDbPharmacyToPharmacy(r.pharmacies), items)
       })
     )
 
@@ -386,7 +401,7 @@ export async function getRequisitionById(
 
     // Récupérer les items avec produits
     const items = await getRequisitionItems(id)
-    const requisition = enrichRequisition(row, row.pharmacies, items)
+    const requisition = enrichRequisition(row, mapDbPharmacyToPharmacy(row.pharmacies), items)
 
     // Récupérer les profils des acteurs (créateur, validateur, livreur, annulateur)
     const profileIds: UUID[] = [
@@ -404,7 +419,7 @@ export async function getRequisitionById(
 
       if (profiles && profiles.length > 0) {
         const profileMap = new Map<string, Profile>(
-          profiles.map((p) => [p.user_id, mapRowToProfile(p)])
+          (profiles as any[]).map((p: any) => [p.user_id, mapRowToProfile(p)])
         )
 
         if (row.created_by) requisition.created_by_profile = profileMap.get(row.created_by)
@@ -502,7 +517,7 @@ export async function getAllRequisitions(
       (dataResult.data ?? []).map(async (row) => {
         const r = row as unknown as RequisitionRowWithJoins & { pharmacies: NonNullable<RequisitionRowWithJoins['pharmacies']> }
         const items = await getRequisitionItems(r.id)
-        return enrichRequisition(r, r.pharmacies, items)
+        return enrichRequisition(r, mapDbPharmacyToPharmacy(r.pharmacies), items)
       })
     )
 
@@ -564,7 +579,7 @@ export async function updateRequisitionStatus(
 
     const row = data as unknown as RequisitionRowWithJoins & { pharmacies: NonNullable<RequisitionRowWithJoins['pharmacies']> }
     const items = await getRequisitionItems(id)
-    const requisition = enrichRequisition(row, row.pharmacies, items)
+    const requisition = enrichRequisition(row, mapDbPharmacyToPharmacy(row.pharmacies), items)
 
     return { data: requisition, error: null }
   } catch (err) {

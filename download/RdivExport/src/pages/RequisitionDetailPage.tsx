@@ -150,7 +150,7 @@ export default function RequisitionDetailPage() {
                   <p className="text-sm font-semibold text-gray-900">{formatQuantity(item.quantity_requested)}</p>
                   <p className="text-xs text-gray-400">demande{item.quantity_requested > 1 ? 's' : ''}</p>
                   {(item.quantity_delivered ?? 0) > 0 && (
-                    <p className="text-xs text-green-600">{formatQuantity(item.quantity_delivered)} livre{item.quantity_delivered > 1 ? 's' : ''}</p>
+                    <p className="text-xs text-green-600">{formatQuantity(item.quantity_delivered ?? 0)} livre{(item.quantity_delivered ?? 0) > 1 ? 's' : ''}</p>
                   )}
                 </div>
               </div>
@@ -231,24 +231,22 @@ export default function RequisitionDetailPage() {
       <ConfirmDialog
         isOpen={showCancelDialog}
         title="Annuler la requisition"
-        message={
-          <div className="space-y-3">
-            <p>Etes-vous sur de vouloir annuler cette requisition ?</p>
-            <div>
-              <label htmlFor="cancel-reason" className="mb-1 block text-xs font-medium text-gray-600">
-                Raison de l\'annulation (optionnel)
-              </label>
-              <input
-                id="cancel-reason"
-                type="text"
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Indiquez la raison..."
-                className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-              />
-            </div>
+        message="Etes-vous sur de vouloir annuler cette requisition ?"
+        messageExtra={
+          <div>
+            <label htmlFor="cancel-reason" className="mb-1 block text-xs font-medium text-gray-600">
+              Raison de l\'annulation (optionnel)
+            </label>
+            <input
+              id="cancel-reason"
+              type="text"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Indiquez la raison..."
+              className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
           </div>
         }
         onConfirm={handleCancel}

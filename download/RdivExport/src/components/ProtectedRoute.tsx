@@ -3,10 +3,10 @@
 // l'accès aux routes protégées. Redirige vers /login si non authentifié, ou vers
 // le tableau de bord approprié si le rôle ne correspond pas.
 
+import { type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import type { ReactNode } from 'react'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ interface ProtectedRouteProps {
 const PHARMACY_USER_ROUTES = [
   /^\/dashboard(\/.*)?$/,
   /^\/requisition\/new(\/.*)?$/,
-  /^\/requisition\/[^/]+(\/.*)?$/,
+  /^\/requisition\/[^\/]+(\/.*)?$/,
   /^\/profil(\/.*)?$/,
 ]
 
@@ -30,7 +30,7 @@ const MAIN_REQUISITIONIST_ROUTES = [
 
 // ─── Composant ──────────────────────────────────────────────────────────────
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function ProtectedRoute({ children }: ProtectedRouteProps): ReactNode {
   const { state } = useAuth()
   const location = useLocation()
 
