@@ -492,18 +492,20 @@ CREATE POLICY "audit_logs_insert_all" ON public.audit_logs
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- =============================================================================
--- DONNÉES INITIALES : Pharmacies exemples
+-- DONNÉES INITIALES : Pharmacies du réseau RdivExport
 -- =============================================================================
 
 INSERT INTO public.pharmacies (name, code, address, phone, whatsapp_number, email, is_active) VALUES
-  ('Pharmacie Centrale',       'PC', 'Avenue de la Paix 45, Bukavu',       '+243991234501', '+243811234501', 'centrale@pharmacie.rdc',   true),
-  ('Pharmacie Nord',           'PN', 'Boulevard du Nord 12, Bukavu',      '+243991234502', '+243811234502', 'nord@pharmacie.rdc',       true),
-  ('Pharmacie Sud',            'PS', 'Avenue Kalemie 78, Bukavu',         '+243991234503', '+243811234503', 'sud@pharmacie.rdc',        true),
-  ('Pharmacie Est',            'PE', 'Route de Uvira 23, Bukavu',         '+243991234504', '+243811234504', 'est@pharmacie.rdc',        true),
-  ('Pharmacie Ouest',          'PO', 'Avenue Mwendé 56, Bukavu',         '+243991234505', '+243811234505', 'ouest@pharmacie.rdc',      true),
-  ('Pharmacie Village A',      'PVA', 'Centre de Village A, Mbuji-Mayi',   '+243991234506', '+243811234506', 'village-a@pharmacie.rdc',  true),
-  ('Pharmacie Village B',      'PVB', 'Marché central, Village B',         '+243991234507', '+243811234507', 'village-b@pharmacie.rdc',  true),
-  ('Pharmacie Village C',      'PVC', 'Carrefour principal, Village C',    '+243991234508', '+243811234508', 'village-c@pharmacie.rdc',  true)
+  ('HEWABORA 1',       'HW1', 'Bukavu',       '+243991234501', '+243811234501', 'hewabora1@rdivexport.com',   true),
+  ('HEWABORA 2',       'HW2', 'Bukavu',       '+243991234502', '+243811234502', 'hewabora2@rdivexport.com',   true),
+  ('DELA',             'DLA', 'Bukavu',       '+243991234503', '+243811234503', 'dela@rdivexport.com',         true),
+  ('PHARMAFRICA',      'PFA', 'Bukavu',       '+243991234504', '+243811234504', 'pharmafrica@rdivexport.com',  true),
+  ('KASAI',            'KAS', 'Bukavu',       '+243991234505', '+243811234505', 'kasai@rdivexport.com',        true),
+  ('BIAYI',            'BIY', 'Bukavu',       '+243991234506', '+243811234506', 'biayi@rdivexport.com',        true),
+  ('KOLWEZI 1',        'KW1', 'Kolwezi',      '+243991234507', '+243811234507', 'kolwezi1@rdivexport.com',     true),
+  ('KOLWEZI 2',        'KW2', 'Kolwezi',      '+243991234508', '+243811234508', 'kolwezi2@rdivexport.com',     true),
+  ('DEPOT',            'DPT', 'Bukavu',       '+243991234509', '+243811234509', 'depot@rdivexport.com',        true),
+  ('EXPORT',           'EXP', 'Bukavu',       '+243991234510', '+243811234510', 'export@rdivexport.com',       true)
 ON CONFLICT (code) DO NOTHING;
 
 -- =============================================================================

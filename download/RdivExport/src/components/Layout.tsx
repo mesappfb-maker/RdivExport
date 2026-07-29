@@ -134,11 +134,7 @@ export function Layout() {
         <div className="flex h-14 items-center justify-between px-4">
           {/* Nom de l'application */}
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
-              <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m6.75 12H9.75m3 0h3m-3 0v3m0-3v-3m-3 0h3" />
-              </svg>
-            </div>
+            <img src="/logo.png" alt="RdivExport" className="h-8 w-8 rounded-lg object-cover" />
             <span className="text-lg font-bold text-gray-900">RdivExport</span>
           </div>
 

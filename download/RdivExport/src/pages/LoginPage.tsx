@@ -62,11 +62,7 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md">
         {/* Logo / Titre */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/30">
-            <svg className="h-9 w-9 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-            </svg>
-          </div>
+          <img src="/logo.png" alt="RdivExport" className="mx-auto mb-4 h-16 w-16 rounded-2xl shadow-lg shadow-blue-600/30 object-cover" />
           <h1 className="text-2xl font-bold text-gray-900">{APP_NAME}</h1>
           <p className="mt-1 text-sm text-gray-500">Gestion des réquisitions pharmaceutiques</p>
         </div>
