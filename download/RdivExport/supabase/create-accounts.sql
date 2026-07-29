@@ -110,7 +110,7 @@ SET
   phone       = '+243811234505',
   pharmacy_id = (SELECT id FROM public.pharmacies WHERE code = 'KAS' LIMIT 1),
   updated_at  = now()
-WHERE email = 'kasai@rdivexport.com'
+WHERE email = 'kasal@rdivexport.com'
 RETURNING id, email, full_name, role, pharmacy_id;
 
 -- ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ SET
   phone       = '+243811234506',
   pharmacy_id = (SELECT id FROM public.pharmacies WHERE code = 'BIY' LIMIT 1),
   updated_at  = now()
-WHERE email = 'biayi@rdivexport.com'
+WHERE email = 'biayil@rdivexport.com'
 RETURNING id, email, full_name, role, pharmacy_id;
 
 -- ---------------------------------------------------------------------------
