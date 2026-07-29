@@ -181,7 +181,7 @@ function mapRowToProduct(row: NonNullable<RequisitionItemRowWithProduct['product
 }
 
 /** Transforme une ligne de profil en objet Profile métier */
-function mapRowToProfile(row: { id: UUID; user_id: UUID; full_name: string; email: string; phone: string | null; role: string; pharmacy_id: UUID | null; avatar_url: string | null; is_active: boolean; created_at: string; updated_at: string }): Profile {
+function mapRowToProfile(row: { id: UUID; full_name: string; email: string; phone: string | null; role: string; pharmacy_id: UUID | null; avatar_url: string | null; is_active: boolean; created_at: string; updated_at: string }): Profile {
   return {
     id: row.id,
     user_id: row.user_id,

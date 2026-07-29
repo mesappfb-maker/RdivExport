@@ -85,10 +85,14 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
 
 // ─── Rôles ──────────────────────────────────────────────────────────────────
 
-export const ROLE_LABELS = {
-  pharmacy_user: 'Pharmacien',
-  main_requisitionist: 'Réquisitionniste principal',
-} as const
+import type { Role } from '@/types'
+
+export const ROLE_LABELS: Record<Role, string> = {
+  main_requisitionist: 'Superviseur',
+  centralisateur: 'Centralisateur',
+  depot_user: 'Dépôt',
+  pharmacy_user: 'Pharmacie / Shop',
+}
 
 // ─── Stock ──────────────────────────────────────────────────────────────────
 

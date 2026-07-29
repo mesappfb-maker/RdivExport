@@ -110,32 +110,32 @@ export default function DeliveryChecklistPage() {
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
           Articles ({checklistItems.length})
         </h2>
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           {checklistItems.map((item) => (
             <div
               key={item.item_id}
-              className={`rounded-xl border bg-white p-3 shadow-sm transition-colors ${
+              className={`rounded-lg border bg-white p-2.5 shadow-sm transition-colors ${
                 item.checked ? 'border-green-300 bg-green-50/50' : 'border-gray-200'
               }`}
             >
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2">
                 <input
                   type="checkbox"
                   checked={item.checked}
                   onChange={() => toggleItemCheck(item.item_id)}
-                  className="mt-1 h-6 w-6 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="mt-0.5 h-5 w-5 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900">{item.product_name}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="truncate text-xs font-medium text-gray-900">{item.product_name}</p>
+                  <p className="text-[10px] text-gray-500">
                     Demande : {formatQuantity(item.quantity_requested)}
                   </p>
                 </div>
               </div>
               {item.checked && (
-                <div className="mt-2 ml-9">
-                  <label className="mb-1 block text-xs font-medium text-gray-500">
-                    Quantite livree
+                <div className="mt-2 ml-7">
+                  <label className="mb-1 block text-[10px] font-medium text-gray-500">
+                    Qté livrée
                   </label>
                   <input
                     type="number"
@@ -144,7 +144,7 @@ export default function DeliveryChecklistPage() {
                     value={item.quantity_delivered || ''}
                     onChange={(e) => handleQuantityChange(item.item_id, e.target.value)}
                     inputMode="numeric"
-                    className="h-11 w-24 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="h-9 w-20 rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
               )}

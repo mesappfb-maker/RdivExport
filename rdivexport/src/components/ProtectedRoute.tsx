@@ -1,23 +1,11 @@
 // ─── RdivExport – Route protégée ───────────────────────────────────────────
-// Vérifie l'authentification et les autorisations par rôle avant d'accorder
-// l'accès aux routes protégées.
+// Vérifie l'authentification avant d'accorder l'accès aux routes protégées.
+// Tous les utilisateurs authentifiés peuvent accéder à toutes les pages.
 
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-
-const PHARMACY_USER_ROUTES = [
-  /^\/dashboard(\/.*)?$/,
-  /^\/requisition\/new(\/.*)?$/,
-  /^\/requisition\/[^/]+(\/.*)?$/,
-  /^\/profil(\/.*)?$/,
-]
-
-const MAIN_REQUISITIONIST_ROUTES = [
-  /^\/admin(\/.*)?$/,
-  /^\/profil(\/.*)?$/,
-]
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { state } = useAuth()
@@ -35,24 +23,6 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!state.user || !state.profile) {
     return <Navigate to="/login" state={{ from: currentPath }} replace />
-  }
-
-  const { role } = state.profile
-
-  if (role === 'pharmacy_user') {
-    const isAllowed = PHARMACY_USER_ROUTES.some((pattern) =>
-      pattern.test(currentPath)
-    )
-    if (!isAllowed) {
-      return <Navigate to="/dashboard" replace />
-    }
-  } else if (role === 'main_requisitionist') {
-    const isAllowed = MAIN_REQUISITIONIST_ROUTES.some((pattern) =>
-      pattern.test(currentPath)
-    )
-    if (!isAllowed) {
-      return <Navigate to="/admin" replace />
-    }
   }
 
   return <>{children}</>

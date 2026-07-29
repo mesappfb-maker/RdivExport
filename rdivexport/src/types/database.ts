@@ -31,7 +31,7 @@ export interface ProfileRow {
   full_name: string
   email: string
   phone: string | null
-  role: 'pharmacy_user' | 'main_requisitionist'
+  role: 'pharmacy_user' | 'main_requisitionist' | 'centralisateur' | 'depot_user'
   pharmacy_id: UUID | null
   avatar_url: string | null
   is_active: boolean
@@ -164,7 +164,7 @@ export interface ProfileInsert {
   full_name: string
   email: string
   phone?: string | null
-  role: 'pharmacy_user' | 'main_requisitionist'
+  role: 'pharmacy_user' | 'main_requisitionist' | 'centralisateur' | 'depot_user'
   pharmacy_id?: UUID | null
   avatar_url?: string | null
   is_active?: boolean
@@ -302,7 +302,7 @@ export interface ProfileUpdate {
   full_name?: string
   email?: string
   phone?: string | null
-  role?: 'pharmacy_user' | 'main_requisitionist'
+  role?: 'pharmacy_user' | 'main_requisitionist' | 'centralisateur' | 'depot_user'
   pharmacy_id?: UUID | null
   avatar_url?: string | null
   is_active?: boolean
@@ -529,7 +529,7 @@ export interface Database {
     Views: Record<string, never>
     Functions: Record<string, never>
     Enums: {
-      user_role: 'pharmacy_user' | 'main_requisitionist'
+      user_role: 'pharmacy_user' | 'main_requisitionist' | 'centralisateur' | 'depot_user'
       requisition_status: 'draft' | 'pending' | 'validated' | 'delivered' | 'cancelled'
       order_status: 'pending' | 'confirmed' | 'partially_delivered' | 'delivered' | 'cancelled'
     }

@@ -16,6 +16,7 @@ import ConsolidationPage from '@/pages/ConsolidationPage'
 import DeliveryListPage from '@/pages/DeliveryListPage'
 import DeliveryChecklistPage from '@/pages/DeliveryChecklistPage'
 import SettingsPage from '@/pages/SettingsPage'
+import DepotStockPage from '@/pages/DepotStockPage'
 
 // Composant Router
 export default function AppRouter() {
@@ -33,12 +34,15 @@ export default function AppRouter() {
           <Route path="/historique" element={<ProtectedRoute><Layout><RequisitionHistoryPage /></Layout></ProtectedRoute>} />
           <Route path="/profil" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
 
-          {/* Routes protégées admin (main_requisitionist) */}
+          {/* Routes protégées admin (superviseur / centralisateur / dépôt) */}
           <Route path="/admin" element={<ProtectedRoute><Layout><AdminDashboard /></Layout></ProtectedRoute>} />
           <Route path="/admin/consolidation" element={<ProtectedRoute><Layout><ConsolidationPage /></Layout></ProtectedRoute>} />
           <Route path="/admin/delivery" element={<ProtectedRoute><Layout><DeliveryListPage /></Layout></ProtectedRoute>} />
           <Route path="/admin/delivery/:id" element={<ProtectedRoute><Layout><DeliveryChecklistPage /></Layout></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute><Layout><SettingsPage /></Layout></ProtectedRoute>} />
+
+          {/* Route protégée dépôt : gestion du stock */}
+          <Route path="/depot/stock" element={<ProtectedRoute><Layout><DepotStockPage /></Layout></ProtectedRoute>} />
 
           {/* Route par défaut */}
           <Route path="*" element={<Navigate to="/login" replace />} />

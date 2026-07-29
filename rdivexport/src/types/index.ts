@@ -5,7 +5,7 @@ import type { UUID } from './database'
 // ─── Enums & Union Types ────────────────────────────────────────────────────
 
 /** Rôles disponibles dans l'application */
-export type Role = 'pharmacy_user' | 'main_requisitionist'
+export type Role = 'pharmacy_user' | 'main_requisitionist' | 'centralisateur' | 'depot_user'
 
 /** Statuts possibles d'une réquisition */
 export type RequisitionStatus =
