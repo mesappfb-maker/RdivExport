@@ -1,51 +1,63 @@
 ---
 Task ID: 1
 Agent: Super Z (main)
-Task: Build complete RdivExport application - React + TypeScript + Vite + Tailwind + Supabase PWA
+Task: Explorer et diagnostiquer tous les bugs du codebase RdivExport
 
 Work Log:
-- Read Excel file: 9,347 pharmaceutical products with Product Name + MAIN DEPOT columns
-- Scaffolded Vite + React + TypeScript project
-- Installed dependencies: tailwindcss, @tailwindcss/vite, @supabase/supabase-js, react-router-dom
-- Created directory structure: components, pages, hooks, lib, services, types, routes, utils, contexts
-- Built core types (index.ts, database.ts) - all entities with proper TypeScript interfaces
-- Built Supabase client singleton (lib/supabase.ts)
-- Built 5 services: auth, products, requisitions, pharmacies, audit
-- Built 5 hooks: useAuth (context+reducer), useProducts (debounced), useRequisitions, useVoiceSearch (Web Speech API), useDeliveryChecklist
-- Built 10 components: ProtectedRoute, Layout, SearchBar, StatusBadge, RequisitionItemRow, RequisitionCard, EmptyState, LoadingSpinner, ConfirmDialog, BackButton
-- Built 9 pages: LoginPage, PharmacyDashboard, CreateRequisitionPage, RequisitionDetailPage, AdminDashboard, ConsolidationPage, DeliveryChecklistPage, ProfilePage, RequisitionHistoryPage
-- Built AppRouter with role-based routing
-- Generated complete SQL schema (517 lines) with 7 tables, RLS policies, indexes, triggers, 8 sample pharmacies
-- Generated seed SQL for 9,346 products from Excel (9,355 lines)
-- Added PWA: manifest.json, service worker (cache-first/network-first), SW registration
-- Fixed useAuth.ts → useAuth.tsx (JSX in .ts file)
-- Build passes: 0 TypeScript errors, Vite build successful (333KB JS + 42KB CSS gzipped to ~107KB total)
-- Created comprehensive README in French
+- Lecture complète de tous les fichiers sources du projet
+- Identification de 8+ bugs dans le codebase
+- Diagnostic des 3 bugs critiques signalés par l'utilisateur
 
 Stage Summary:
-- Complete RdivExport project at /home/z/my-project/download/RdivExport/
-- 37 source files, ~16,000 lines of code
-- Production-ready build verified
-- All features implemented: auth, roles, search text+voice, requisitions, WhatsApp, dashboard, consolidation, delivery checklist, PWA
+- Bug 1 (WhatsApp): numéro non configuré, bouton conditionnel masqué
+- Bug 2 (Clic réquisition): types/service déjà corrigés dans une session précédente
+- Bug 3 (Livraison): route /admin/delivery sans :id matchait pas, renvoyait vers /login
+- Bugs supplémentaires: Historique → /dashboard au lieu de /historique, /history au lieu de /historique, bouton Modifier vers route inexistante
 
 ---
 Task ID: 2
-Agent: Super Z (sub - TypeScript build fixer)
-Task: Fix all TypeScript build errors in /home/z/my-project/rdivexport
+Agent: Sub-agent full-stack-developer
+Task: Vérifier et corriger les types/service (comment, product_name, profiles)
 
 Work Log:
-- Analyzed root cause: `Layout` component used `<Outlet />` but was called with `children` prop in AppRouter
-- Fix 1+7: Layout.tsx - Added `import type { ReactNode }`, changed `React.ReactNode` → `ReactNode` in NavItem, added `children?: ReactNode` prop, changed `<Outlet />` → `{children ?? <Outlet />}`
-- Fix 2: Restored AppRouter.tsx to original version with full route definitions (all 9 page routes with `<ProtectedRoute><Layout><Page /></Layout></ProtectedRoute>` pattern)
-- Fix 3: Created src/types/speech.d.ts with global type declarations for `SpeechRecognitionEvent` and `SpeechRecognitionErrorEvent` (Web Speech API types not in standard DOM lib)
-- Fix 4: Restored tsconfig.app.json to proper Vite-compatible config (added: tsBuildInfoFile, types: ["vite/client"], allowArbitraryExtensions, allowImportingTsExtensions, verbatimModuleSyntax, moduleDetection: "force", noEmit, noUnusedLocals, noUnusedParameters, noFallthroughCasesInSwitch)
-- Fix 5: auth.service.ts - Verified pharmacy property already uses `undefined` (not `null`), no change needed
-- Fix 6: TestUse4.tsx - File does not exist in project, no action needed
-- Ran `npx tsc -b --force` → 0 errors
-- Ran `npx vite build` → successful build (333KB JS + 42KB CSS)
+- Vérifié database.ts: déjà corrigé (product_name présent, comment/updated_at absents)
+- Vérifié index.ts: déjà corrigé
+- Vérifié requisitions.service.ts: déjà corrigé (product_name, profiles.id)
 
 Stage Summary:
-- All TypeScript build errors fixed
-- `npx tsc -b --force` passes with 0 errors
-- `npx vite build` succeeds (99 modules transformed in 625ms)
-- Only non-error output: sourcemap warning from @tailwindcss/vite plugin (expected, not an error)
+- Tous les types et services étaient déjà alignés avec le schéma DB
+
+---
+Task ID: 3
+Agent: Super Z (main)
+Task: Corriger les 3 bugs critiques + liens cassés + nouvelles fonctionnalités
+
+Work Log:
+- Fix Layout.tsx: Historique → /historique
+- Fix CreateRequisitionPage: /history → /historique, ajout product_name dans les inserts
+- Fix RequisitionDetailPage: WhatsApp utilise numéro configuré, grid layout, product_name fallback, suppression bouton Modifier
+- Créé DeliveryListPage.tsx: liste des réquisitions à livrer
+- Créé settings.service.ts: gestion paramètres (clé-valeur)
+- Créé SettingsPage.tsx: config WhatsApp + gestion comptes + reset MDP + rôles
+- Mis à jour AppRouter.tsx: routes /admin/delivery, /admin/settings
+- Ajouté bouton paramètres (⚙️) dans header pour superviseur
+- Créé app-settings.sql: table Supabase pour paramètres globaux
+- Créé _redirects pour SPA Cloudflare Pages
+- Créé DepotStockPage.tsx: gestion stock dépôt
+- Mis à jour types pour 4 rôles (superviseur, centralisateur, dépôt, pharmacie)
+- Mis à jour Layout nav par rôle
+- Ajouté saisie manuelle produit dans CreateRequisitionPage
+- Ajouté section stock dépôt dans PharmacyDashboard
+- Créé new-roles.sql: migration SQL pour nouveaux rôles
+- Mis à jour PWA: nouveau manifest, service worker v2, icône SVG
+- Mis à jour formatters.ts: product_name fallback dans WhatsApp message
+- Build réussi sans erreur TypeScript
+
+Stage Summary:
+- Tous les 3 bugs critiques corrigés
+- 4 rôles implémentés
+- Grille layout pour les listes produits
+- Saisie manuelle produit
+- Stock dépôt visible sur dashboard pharmacie
+- PWA avec icône personnalisée
+- Gestion comptes et reset MDP pour superviseur

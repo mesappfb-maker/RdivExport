@@ -10,9 +10,8 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatDate, formatQuantity, formatWhatsAppMessage, generateWhatsAppLink } from '@/utils/formatters'
+import { getWhatsAppNumber } from '@/services/settings.service'
 import type { RequisitionStatus } from '@/types'
-
-// --- Composant ----------------------------------------------------------------
 
 export default function RequisitionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -26,6 +25,7 @@ export default function RequisitionDetailPage() {
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [whatsappDestNumber, setWhatsappNameDestNumber] = useState<string | null>(null)
 
   // --- Chargement ------------------------------------------------------------
   useEffect(() => {
@@ -34,12 +34,17 @@ export default function RequisitionDetailPage() {
     }
   }, [id, fetchRequisitionDetail])
 
+  // Charger le numéro WhatsApp configuré
+  useEffect(() => {
+    getWhatsAppNumber().then(setWhatsappNameDestNumber)
+  }, [])
+
   // --- Actions ---------------------------------------------------------------
   const handleDelete = useCallback(async () => {
     if (!id || !profile) return
     setShowDeleteDialog(false)
     setActionLoading(true)
-    await updateStatus(id, 'cancelled', profile.user_id, 'Supprimee par l\'utilisateur')
+    await updateStatus(id, 'cancelled', profile.user_id, "Supprimee par l'utilisateur")
     setActionLoading(false)
     navigate(-1)
   }, [id, profile, updateStatus, navigate])
@@ -56,18 +61,19 @@ export default function RequisitionDetailPage() {
   const handleSendWhatsApp = useCallback(() => {
     if (!req || !profile) return
     const message = formatWhatsAppMessage(req, profile.pharmacy?.name ?? 'Pharmacie')
-    const phone = profile.pharmacy?.whatsapp_number ?? ''
+    // Utiliser le numéro configuré en paramètres, sinon le numéro de la pharmacie
+    const phone = whatsappDestNumber ?? profile.pharmacy?.whatsapp_number ?? ''
     if (phone) {
       const link = generateWhatsAppLink(phone, message)
       window.open(link, '_blank')
     }
-  }, [req, profile])
+  }, [req, profile, whatsappDestNumber])
 
   // --- Loading ---------------------------------------------------------------
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
-        <LoadingSpinner size="lg" message="Chargement de la requisition..." />
+        <LoadingSpinner size="lg" message="Chargement de la réquisition..." />
       </div>
     )
   }
@@ -75,25 +81,26 @@ export default function RequisitionDetailPage() {
   if (!req) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4">
-        <p className="mb-4 text-sm text-gray-500">{error ?? 'Requisition introuvable.'}</p>
+        <p className="mb-4 text-sm text-gray-500">{error ?? 'Réquisition introuvable.'}</p>
         <BackButton />
       </div>
     )
   }
 
   const status: RequisitionStatus = req.status
-  const isDraft = status === 'draft'
   const isPending = status === 'pending'
   const pharmacyName = req.pharmacy?.name ?? 'Pharmacie inconnue'
-  const whatsappNumber = profile?.pharmacy?.whatsapp_number
+
+  // Déterminer si WhatsApp est disponible
+  const hasWhatsApp = !!(whatsappDestNumber || profile?.pharmacy?.whatsapp_number)
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Barre superieure */}
+      {/* Barre supérieure */}
       <div className="sticky top-0 z-30 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <BackButton />
-          <h1 className="text-lg font-bold text-gray-900">Details</h1>
+          <h1 className="text-lg font-bold text-gray-900">Détails</h1>
           <div className="w-16" />
         </div>
       </div>
@@ -117,10 +124,10 @@ export default function RequisitionDetailPage() {
           )}
 
           {status === 'delivered' && req.delivered_at && (
-            <p className="mt-2 text-xs text-green-600">Livree le {formatDate(req.delivered_at)}</p>
+            <p className="mt-2 text-xs text-green-600">Livrée le {formatDate(req.delivered_at)}</p>
           )}
           {status === 'validated' && req.validated_at && (
-            <p className="mt-2 text-xs text-blue-600">Validee le {formatDate(req.validated_at)}</p>
+            <p className="mt-2 text-xs text-blue-600">Validée le {formatDate(req.validated_at)}</p>
           )}
         </div>
 
@@ -129,33 +136,37 @@ export default function RequisitionDetailPage() {
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
             Articles ({req.items?.length ?? 0})
           </h2>
-          <div className="space-y-2">
-            {req.items?.map((item, index) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
-              >
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
-                  {index + 1}
+          {req.items && req.items.length > 0 ? (
+            <div className="space-y-2">
+              {req.items.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
+                >
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900">
+                      {item.product?.name ?? item.product_name ?? 'Produit inconnu'}
+                    </p>
+                    {item.product?.unit && (
+                      <p className="text-xs text-gray-400">{item.product.unit}</p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-gray-900">{formatQuantity(item.quantity_requested)}</p>
+                    <p className="text-xs text-gray-400">demandé{item.quantity_requested > 1 ? 's' : ''}</p>
+                    {(item.quantity_delivered ?? 0) > 0 && (
+                      <p className="text-xs text-green-600">{formatQuantity(item.quantity_delivered ?? 0)} livré{(item.quantity_delivered ?? 0) > 1 ? 's' : ''}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900">
-                    {item.product?.name ?? 'Produit inconnu'}
-                  </p>
-                  {item.product?.unit && (
-                    <p className="text-xs text-gray-400">{item.product.unit}</p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-900">{formatQuantity(item.quantity_requested)}</p>
-                  <p className="text-xs text-gray-400">demande{item.quantity_requested > 1 ? 's' : ''}</p>
-                  {(item.quantity_delivered ?? 0) > 0 && (
-                    <p className="text-xs text-green-600">{formatQuantity(item.quantity_delivered ?? 0)} livre{(item.quantity_delivered ?? 0) > 1 ? 's' : ''}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">Aucun article dans cette réquisition.</p>
+          )}
         </div>
 
         {/* Commentaire */}
@@ -175,7 +186,8 @@ export default function RequisitionDetailPage() {
 
         {/* Boutons d'action */}
         <div className="mt-6 space-y-3 pb-8">
-          {whatsappNumber && (
+          {/* Bouton WhatsApp - toujours visible si un numéro est configuré */}
+          {hasWhatsApp ? (
             <button
               onClick={handleSendWhatsApp}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-green-600 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 active:bg-green-800"
@@ -185,25 +197,12 @@ export default function RequisitionDetailPage() {
               </svg>
               Envoyer via WhatsApp
             </button>
-          )}
-
-          {isDraft && (
-            <>
-              <button
-                onClick={() => navigate(`/requisition/${id}/edit`)}
-                disabled={actionLoading}
-                className="flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60"
-              >
-                Modifier
-              </button>
-              <button
-                onClick={() => setShowDeleteDialog(true)}
-                disabled={actionLoading}
-                className="flex h-12 w-full items-center justify-center rounded-xl border border-red-300 bg-red-50 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-60"
-              >
-                Supprimer
-              </button>
-            </>
+          ) : (
+            <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-center">
+              <p className="text-xs text-yellow-700">
+                WhatsApp non configuré. Le superviseur doit définir le numéro de destination dans les paramètres.
+              </p>
+            </div>
           )}
 
           {isPending && (
@@ -212,7 +211,7 @@ export default function RequisitionDetailPage() {
               disabled={actionLoading}
               className="flex h-12 w-full items-center justify-center rounded-xl border border-yellow-300 bg-yellow-50 text-sm font-semibold text-yellow-700 transition-colors hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:opacity-60"
             >
-              Annuler la requisition
+              Annuler la réquisition
             </button>
           )}
         </div>
@@ -220,8 +219,8 @@ export default function RequisitionDetailPage() {
 
       <ConfirmDialog
         isOpen={showDeleteDialog}
-        title="Supprimer la requisition"
-        message="Cette action est irreversible. Voulez-vous vraiment supprimer cette requisition ?"
+        title="Supprimer la réquisition"
+        message="Cette action est irréversible. Voulez-vous vraiment supprimer cette réquisition ?"
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteDialog(false)}
         confirmLabel="Supprimer"
@@ -237,8 +236,8 @@ export default function RequisitionDetailPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
               </svg>
             </div>
-            <h2 className="mb-2 text-lg font-semibold text-gray-900">Annuler la requisition</h2>
-            <p className="mb-4 text-sm leading-relaxed text-gray-600">Etes-vous sur de vouloir annuler cette requisition ?</p>
+            <h2 className="mb-2 text-lg font-semibold text-gray-900">Annuler la réquisition</h2>
+            <p className="mb-4 text-sm leading-relaxed text-gray-600">Êtes-vous sûr de vouloir annuler cette réquisition ?</p>
             <div className="mb-4">
               <label htmlFor="cancel-reason" className="mb-1 block text-xs font-medium text-gray-600">Raison de l'annulation (optionnel)</label>
               <input

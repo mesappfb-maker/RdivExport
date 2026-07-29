@@ -59,7 +59,7 @@ export function useDeliveryChecklist(): UseDeliveryChecklistReturn {
     // Build checklist state from requisition items
     const items: ChecklistItemState[] = (result.data.items ?? []).map((item) => ({
       item_id: item.id,
-      product_name: item.product?.name ?? 'Produit inconnu',
+      product_name: item.product?.name ?? item.product_name ?? 'Produit inconnu',
       quantity_requested: item.quantity_requested,
       quantity_delivered: item.quantity_delivered ?? 0,
       checked: (item.quantity_delivered ?? 0) > 0,

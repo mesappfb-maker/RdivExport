@@ -2,7 +2,7 @@
 // Formulaire de création de réquisition : recherche de produits, quantités,
 // commentaire, envoi via WhatsApp ou enregistrement brouillon.
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useRequisitions } from '@/hooks/useRequisitions'
@@ -11,6 +11,7 @@ import { RequisitionItemRow } from '@/components/RequisitionItemRow'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { BackButton } from '@/components/BackButton'
 import { formatWhatsAppMessage, generateWhatsAppLink } from '@/utils/formatters'
+import { getWhatsAppNumber } from '@/services/settings.service'
 import type { Product, Requisition } from '@/types'
 
 // --- Types locaux ------------------------------------------------------------
@@ -39,6 +40,36 @@ export default function CreateRequisitionPage() {
   const [comment, setComment] = useState('')
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [createdRequisition, setCreatedRequisition] = useState<Requisition | null>(null)
+  const [whatsappDestNumber, setWhatsappNameDestNumber] = useState<string | null>(null)
+  const [showManualEntry, setShowManualEntry] = useState(false)
+  const [manualProductName, setManualProductName] = useState('')
+
+  // Charger le numéro WhatsApp configuré
+  useEffect(() => {
+    getWhatsAppNumber().then(setWhatsappNameDestNumber)
+  }, [])
+
+  // --- Ajouter un produit manuellement ----------------------------------------
+  const handleAddManualProduct = useCallback(() => {
+    const name = manualProductName.trim()
+    if (!name) return
+    setItems((prev) => {
+      // Vérifier doublon par nom
+      if (prev.some((i) => i.product_name.toLowerCase() === name.toLowerCase())) {
+        return prev
+      }
+      return [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          product_id: 'manual-' + crypto.randomUUID(),
+          product_name: name,
+          quantity: 1,
+        },
+      ]
+    })
+    setManualProductName('')
+  }, [manualProductName])
 
   // --- Ajouter un produit -----------------------------------------------------
   const handleProductSelect = useCallback((product: Product) => {
@@ -80,10 +111,15 @@ export default function CreateRequisitionPage() {
     const req = await createRequisition(
       {
         pharmacy_id: pharmacyId,
-        items: items.map((item) => ({
-          product_id: item.product_id,
-          quantity_requested: item.quantity,
-        })),
+        items: items.map((item) => {
+          // Produit manuel : utiliser un UUID par défaut et stocker le nom
+          const isManual = item.product_id.startsWith('manual-')
+          return {
+            product_id: isManual ? '00000000-0000-0000-0000-000000000000' : item.product_id,
+            product_name: item.product_name,
+            quantity_requested: item.quantity,
+          }
+        }),
         comment: comment.trim() || undefined,
       },
       profile.user_id
@@ -104,10 +140,14 @@ export default function CreateRequisitionPage() {
     const req = await createRequisition(
       {
         pharmacy_id: pharmacyId,
-        items: items.map((item) => ({
-          product_id: item.product_id,
-          quantity_requested: item.quantity,
-        })),
+        items: items.map((item) => {
+          const isManual = item.product_id.startsWith('manual-')
+          return {
+            product_id: isManual ? '00000000-0000-0000-0000-000000000000' : item.product_id,
+            product_name: item.product_name,
+            quantity_requested: item.quantity,
+          }
+        }),
         comment: comment.trim() || undefined,
       },
       profile.user_id
@@ -120,12 +160,13 @@ export default function CreateRequisitionPage() {
 
     // 2. Générer et ouvrir le lien WhatsApp
     const message = formatWhatsAppMessage(req, pharmacyName)
-    const phone = whatsappNumber ?? ''
+    // Utiliser le numéro configuré en paramètres, sinon le numéro de la pharmacie
+    const phone = whatsappDestNumber ?? whatsappNumber ?? ''
     if (phone) {
       const link = generateWhatsAppLink(phone, message)
       window.open(link, '_blank')
     }
-  }, [pharmacyId, profile, items, comment, whatsappNumber, pharmacyName, createRequisition, clearError])
+  }, [pharmacyId, profile, items, comment, whatsappNumber, whatsappDestNumber, pharmacyName, createRequisition, clearError])
 
   // --- Réinitialiser le formulaire -------------------------------------------
   const handleReset = useCallback(() => {
@@ -157,7 +198,7 @@ export default function CreateRequisitionPage() {
               Créer une autre réquisition
             </button>
             <button
-              onClick={() => navigate('/history')}
+              onClick={() => navigate('/historique')}
               className="flex h-12 w-full items-center justify-center rounded-xl border border-gray-300 bg-white text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
             >
               Voir l'historique
@@ -182,9 +223,41 @@ export default function CreateRequisitionPage() {
 
       <div className="mx-auto max-w-lg px-4 py-4">
         {/* Barre de recherche */}
-        <div className="mb-4">
+        <div className="mb-3">
           <SearchBar onSelect={handleProductSelect} placeholder="Rechercher un produit…" />
         </div>
+
+        {/* Saisie manuelle pour produit non trouvé */}
+        <button
+          type="button"
+          onClick={() => setShowManualEntry(!showManualEntry)}
+          className="mb-3 text-xs font-medium text-blue-600 hover:text-blue-700"
+        >
+          {showManualEntry ? 'Masquer la saisie manuelle' : 'Produit non trouvé ? Saisir manuellement'}
+        </button>
+
+        {showManualEntry && (
+          <div className="mb-4 rounded-xl border border-dashed border-blue-300 bg-blue-50/50 p-3">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={manualProductName}
+                onChange={(e) => setManualProductName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddManualProduct() }}
+                placeholder="Nom du produit…"
+                className="block h-11 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={handleAddManualProduct}
+                disabled={!manualProductName.trim()}
+                className="flex h-11 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Ajouter
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Compteur d'articles */}
         {items.length > 0 && (

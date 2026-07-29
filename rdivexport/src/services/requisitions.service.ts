@@ -92,11 +92,10 @@ interface RequisitionItemRowWithProduct {
   id: UUID
   requisition_id: UUID
   product_id: UUID
+  product_name: string
   quantity_requested: number
   quantity_delivered: number | null
-  comment: string | null
   created_at: string
-  updated_at: string
   products?: {
     id: UUID
     name: string
@@ -143,11 +142,10 @@ function mapRowToRequisitionItem(
     requisition_id: row.requisition_id,
     product_id: row.product_id,
     product: product ?? undefined,
+    product_name: row.product_name,
     quantity_requested: row.quantity_requested,
     quantity_delivered: row.quantity_delivered ?? 0,
-    comment: row.comment ?? undefined,
     created_at: row.created_at,
-    updated_at: row.updated_at,
   }
 }
 
@@ -237,8 +235,8 @@ export async function createRequisition(
     const itemsToInsert = input.items.map((item) => ({
       requisition_id: requisition.id,
       product_id: item.product_id,
+      product_name: item.product_name ?? null,
       quantity_requested: item.quantity_requested,
-      comment: item.comment ?? null,
     }))
 
     // 3. Insérer toutes les lignes
@@ -400,11 +398,11 @@ export async function getRequisitionById(
       const { data: profiles } = await supabase
         .from('profiles')
         .select('*')
-        .in('user_id', profileIds)
+        .in('id', profileIds)
 
       if (profiles && profiles.length > 0) {
         const profileMap = new Map<string, Profile>(
-          profiles.map((p) => [p.user_id, mapRowToProfile(p)])
+          profiles.map((p) => [p.id, mapRowToProfile(p)])
         )
 
         if (row.created_by) requisition.created_by_profile = profileMap.get(row.created_by)
@@ -748,6 +746,11 @@ async function getRequisitionItems(requisitionId: UUID): Promise<RequisitionItem
   return data.map((row) => {
     const typedRow = row as unknown as RequisitionItemRowWithProduct
     const product = typedRow.products ? mapRowToProduct(typedRow.products) : null
-    return mapRowToRequisitionItem(typedRow, product)
+    const mapped = mapRowToRequisitionItem(typedRow, product)
+    // Use product_name as fallback when product join is null
+    if (!mapped.product && typedRow.product_name) {
+      mapped.product_name = typedRow.product_name
+    }
+    return mapped
   })
 }

@@ -94,7 +94,7 @@ export function formatWhatsAppMessage(
   const itemsList = requisition.items
     ?.map(
       (item, index) =>
-        `${index + 1}. ${item.product?.name ?? 'Produit inconnu'} × ${item.quantity_requested}${item.comment ? ` (${item.comment})` : ''}`
+        `${index + 1}. ${item.product?.name ?? item.product_name ?? 'Produit inconnu'} × ${item.quantity_requested}`
     )
     .join('\n') ?? 'Aucun produit'
 

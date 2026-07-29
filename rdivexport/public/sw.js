@@ -1,170 +1,79 @@
-/// <reference lib="webworker" />
+// RdivExport - Service Worker v2
+// Cache-first pour les assets statiques, network-first pour l'API.
 
-// ─── RdivExport – Service Worker pour PWA ────────────────────────────────────
-// Stratégie de mise en cache :
-// - Cache-first pour les assets statiques (CSS, JS, images, fonts)
-// - Network-first pour les appels API (routes commençant par /rest/v1/)
-// - Versionnage du cache pour invalidation lors des mises à jour
+const CACHE_NAME = 'rdivexport-v2'
 
-declare const self: ServiceWorkerGlobalScope
-
-const CACHE_VERSION = 'rdivexport-v1'
-const STATIC_CACHE = `${CACHE_VERSION}-static`
-const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`
-
-// ─── Fichiers à pré-mettre en cache lors de l'installation ─────────────────
-
+// Assets à pré-cacher
 const PRECACHE_URLS = [
   '/',
   '/index.html',
+  '/icon.svg',
   '/manifest.json',
-  '/favicon.svg',
 ]
 
-// ─── Événement d'installation ─────────────────────────────────────────────────
-// Pré-cache les ressources statiques essentielles et active immédiatement le SW.
-
-self.addEventListener('install', (event: ExtendableEvent) => {
+// Installation : pré-cache des assets de base
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches
-      .open(STATIC_CACHE)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
   )
+  self.skipWaiting()
 })
 
-// ─── Événement d'activation ──────────────────────────────────────────────────
-// Nettoie les anciens caches lors de la mise à jour du service worker.
-
-self.addEventListener('activate', (event: ExtendableEvent) => {
+// Activation : nettoyer les anciens caches
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((cacheNames) =>
-        Promise.all(
-          cacheNames
-            .filter((name) => name !== STATIC_CACHE && name !== DYNAMIC_CACHE)
-            .map((name) => caches.delete(name))
-        )
-      )
-      .then(() => self.clients.claim())
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
   )
+  self.clients.claim()
 })
 
-// ─── Événement fetch ─────────────────────────────────────────────────────────
-// Interception des requêtes réseau :
-// - API calls (Supabase) : network-first avec fallback sur cache
-// - Static assets : cache-first avec fallback sur réseau
-// - Requêtes POST/PUT/DELETE : réseau uniquement (non mises en cache)
-
-self.addEventListener('fetch', (event: FetchEvent) => {
+// Requêtes : cache-first pour les assets, network-first pour le reste
+self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
 
-  // Ne pas intercepter les requêtes non-GET
-  if (request.method !== 'GET') {
+  // Ne pas cacher les requêtes Supabase (API)
+  if (url.hostname.includes('supabase.co')) {
+    event.respondWith(
+      fetch(request).catch(() => new Response('Hors ligne', { status: 503 }))
+    )
     return
   }
 
-  // Ne pas intercepter les requêtes chrome-extension
-  if (url.protocol === 'chrome-extension:') {
-    return
-  }
-
-  // API calls : Network-first (Supabase REST API)
+  // Assets statiques : cache-first
   if (
-    url.hostname.includes('supabase.co') ||
-    url.pathname.startsWith('/rest/v1/') ||
-    url.pathname.startsWith('/auth/v1/')
+    request.method === 'GET' &&
+    (url.pathname.match(/\.(js|css|svg|png|jpg|jpeg|webp|woff2?)$/) ||
+    url.pathname === '/' ||
+    url.pathname === '/index.html'
   ) {
-    event.respondWith(networkFirst(request, DYNAMIC_CACHE))
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached
+        return fetch(request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
+          }
+          return response
+        })
+      })
+    )
     return
   }
 
-  // Static assets : Cache-first
-  if (isStaticAsset(url)) {
-    event.respondWith(cacheFirst(request, STATIC_CACHE))
-    return
-  }
-
-  // Navigation HTML : Network-first avec fallback
+  // Navigation : network-first avec fallback hors ligne
   if (request.mode === 'navigate') {
-    event.respondWith(networkFirst(request, DYNAMIC_CACHE))
+    event.respondWith(
+      fetch(request).catch(() => caches.match('/index.html'))
+    )
     return
   }
 
-  // Par défaut : Network-first
-  event.respondWith(networkFirst(request, DYNAMIC_CACHE))
+  // Par défaut : network-first
+  event.respondWith(
+    fetch(request).catch(() => new Response('Hors ligne', { status: 503 }))
+  )
 })
-
-// ─── Stratégie : Cache-first ─────────────────────────────────────────────────
-// Cherche d'abord dans le cache, puis va sur le réseau si non trouvé.
-
-async function cacheFirst(request: Request, cacheName: string): Promise<Response> {
-  const cached = await caches.match(request)
-  if (cached) {
-    return cached
-  }
-
-  try {
-    const response = await fetch(request)
-    if (response.ok) {
-      const cache = await caches.open(cacheName)
-      cache.put(request, response.clone())
-    }
-    return response
-  } catch {
-    // Fallback hors-ligne pour les requêtes de navigation
-    if (request.mode === 'navigate') {
-      const fallback = await caches.match('/index.html')
-      if (fallback) return fallback
-    }
-    return new Response('Hors ligne', {
-      status: 503,
-      statusText: 'Service Unavailable',
-    })
-  }
-}
-
-// ─── Stratégie : Network-first ───────────────────────────────────────────────
-// Essaie d'abord le réseau, puis fallback sur le cache.
-
-async function networkFirst(request: Request, cacheName: string): Promise<Response> {
-  try {
-    const response = await fetch(request)
-    if (response.ok) {
-      const cache = await caches.open(cacheName)
-      cache.put(request, response.clone())
-    }
-    return response
-  } catch {
-    const cached = await caches.match(request)
-    if (cached) {
-      return cached
-    }
-
-    // Fallback hors-ligne pour les requêtes de navigation
-    if (request.mode === 'navigate') {
-      const fallback = await caches.match('/index.html')
-      if (fallback) return fallback
-    }
-
-    return new Response('Hors ligne', {
-      status: 503,
-      statusText: 'Service Unavailable',
-    })
-  }
-}
-
-// ─── Helper : Détection des assets statiques ─────────────────────────────────
-
-function isStaticAsset(url: URL): boolean {
-  const staticExtensions = [
-    '.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg',
-    '.webp', '.ico', '.woff', '.woff2', '.ttf', '.eot',
-    '.json', '.xml',
-  ]
-  return staticExtensions.some((ext) => url.pathname.endsWith(ext))
-}
-
-export {}
