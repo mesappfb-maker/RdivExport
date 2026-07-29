@@ -6,6 +6,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { getInitials } from '@/utils/formatters'
 import type { Role } from '@/types'
+import type { ReactNode } from 'react'
 
 // ─── Navigation par rôle ────────────────────────────────────────────────────
 
@@ -110,7 +111,7 @@ function isNavActive(currentPath: string, navPath: string): boolean {
 
 // ─── Composant ──────────────────────────────────────────────────────────────
 
-export function Layout() {
+export function Layout({ children }: { children?: ReactNode }) {
   const { state, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -166,7 +167,7 @@ export function Layout() {
 
       {/* ── Zone de contenu principal ── */}
       <main className="flex-1 px-4 pb-24 pt-[4.5rem]">
-        <Outlet />
+        {children ?? <Outlet />}
       </main>
 
       {/* ── Barre de navigation inférieure ── */}
