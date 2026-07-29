@@ -1,0 +1,25 @@
+import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+
+if (!supabaseUrl) {
+  throw new Error(
+    'VITE_SUPABASE_URL n\'est pas défini. Veuillez vérifier votre fichier .env'
+  )
+}
+
+if (!supabaseAnonKey) {
+  throw new Error(
+    'VITE_SUPABASE_ANON_KEY n\'est pas défini. Veuillez vérifier votre fichier .env'
+  )
+}
+
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+})
