@@ -1,15 +1,10 @@
 // ─── RdivExport – Application Router ────────────────────────────────────────
-// Configuration des routes de l'application avec React Router v6.
-// AuthProvider englobe l'ensemble de l'arbre pour fournir le contexte d'auth.
-// ProtectedRoute vérifie l'authentification et les rôles avant d'accorder l'accès.
-
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from '@/hooks/useAuth'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { Layout } from '@/components/Layout'
 
-// ─── Pages ───────────────────────────────────────────────────────────────────
-
+// ─── Pages ────────────────────────────────────────────────────────────────────
 import LoginPage from '@/pages/LoginPage'
 import PharmacyDashboard from '@/pages/PharmacyDashboard'
 import CreateRequisitionPage from '@/pages/CreateRequisitionPage'
@@ -21,7 +16,6 @@ import ConsolidationPage from '@/pages/ConsolidationPage'
 import DeliveryChecklistPage from '@/pages/DeliveryChecklistPage'
 
 // ─── Composant Router ────────────────────────────────────────────────────────
-
 export default function AppRouter() {
   return (
     <BrowserRouter>
@@ -41,7 +35,6 @@ export default function AppRouter() {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/requisition/new"
             element={
@@ -52,7 +45,6 @@ export default function AppRouter() {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/requisition/:id"
             element={
@@ -63,7 +55,6 @@ export default function AppRouter() {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/historique"
             element={
@@ -98,7 +89,6 @@ export default function AppRouter() {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/admin/consolidation"
             element={
@@ -109,7 +99,6 @@ export default function AppRouter() {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/admin/delivery/:id"
             element={
