@@ -92,11 +92,10 @@ interface RequisitionItemRowWithProduct {
   id: UUID
   requisition_id: UUID
   product_id: UUID
+  product_name: string
   quantity_requested: number
   quantity_delivered: number | null
-  comment: string | null
   created_at: string
-  updated_at: string
   products?: {
     id: UUID
     name: string
@@ -157,12 +156,11 @@ function mapRowToRequisitionItem(
     id: row.id,
     requisition_id: row.requisition_id,
     product_id: row.product_id,
+    product_name: row.product_name,
     product: product ?? undefined,
     quantity_requested: row.quantity_requested,
     quantity_delivered: row.quantity_delivered ?? 0,
-    comment: row.comment ?? undefined,
     created_at: row.created_at,
-    updated_at: row.updated_at,
   }
 }
 
@@ -251,8 +249,8 @@ export async function createRequisition(
     const itemsToInsert = input.items.map((item) => ({
       requisition_id: requisition.id,
       product_id: item.product_id,
+      product_name: item.product_name,
       quantity_requested: item.quantity_requested,
-      comment: item.comment ?? null,
     }))
 
     // 3. Insérer toutes les lignes

@@ -95,12 +95,11 @@ export interface RequisitionItem {
   requisition_id: UUID
   requisition?: Requisition
   product_id: UUID
+  product_name: string
   product?: Product
   quantity_requested: number
   quantity_delivered?: number
-  comment?: string
   created_at: string
-  updated_at: string
 }
 
 // ─── DeliveryChecklist (Bordereau de livraison) ─────────────────────────────
@@ -151,8 +150,8 @@ export interface CreateRequisitionInput {
   pharmacy_id: UUID
   items: Array<{
     product_id: UUID
+    product_name: string
     quantity_requested: number
-    comment?: string
   }>
   comment?: string
 }

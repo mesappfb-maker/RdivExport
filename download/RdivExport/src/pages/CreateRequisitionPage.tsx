@@ -82,6 +82,7 @@ export default function CreateRequisitionPage() {
         pharmacy_id: pharmacyId,
         items: items.map((item) => ({
           product_id: item.product_id,
+          product_name: item.product_name,
           quantity_requested: item.quantity,
         })),
         comment: comment.trim() || undefined,
@@ -106,6 +107,7 @@ export default function CreateRequisitionPage() {
         pharmacy_id: pharmacyId,
         items: items.map((item) => ({
           product_id: item.product_id,
+          product_name: item.product_name,
           quantity_requested: item.quantity,
         })),
         comment: comment.trim() || undefined,

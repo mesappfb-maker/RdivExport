@@ -74,11 +74,10 @@ export interface RequisitionItemRow {
   id: UUID
   requisition_id: UUID
   product_id: UUID
+  product_name: string
   quantity_requested: number
   quantity_delivered: number | null
-  comment: string | null
   created_at: string
-  updated_at: string
 }
 
 export interface DeliveryChecklistRow {
@@ -160,9 +159,9 @@ export interface RequisitionItemInsert {
   id?: UUID
   requisition_id: UUID
   product_id: UUID
+  product_name: string
   quantity_requested: number
   quantity_delivered?: number | null
-  comment?: string | null
 }
 
 export interface DeliveryChecklistInsert {
@@ -235,7 +234,6 @@ export interface RequisitionUpdate {
 export interface RequisitionItemUpdate {
   quantity_requested?: number
   quantity_delivered?: number | null
-  comment?: string | null
 }
 
 export interface DeliveryChecklistUpdate {
