@@ -15,6 +15,14 @@ export type RequisitionStatus =
   | 'delivered'
   | 'cancelled'
 
+/** Statuts possibles d'une commande */
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'partially_delivered'
+  | 'delivered'
+  | 'cancelled'
+
 // ─── Pharmacy ──────────────────────────────────────────────────────────────
 
 export interface Pharmacy {
@@ -59,6 +67,60 @@ export interface Product {
   category?: string
   min_stock_threshold?: number
   is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// ─── DepotCatalogItem (Produit du catalogue dépôt) ─────────────────────────
+
+export interface DepotCatalogItem {
+  id: UUID
+  product_id: UUID
+  product?: Product
+  available_quantity: number
+  unit_price: number | null
+  is_available: boolean
+  restock_date?: string | null
+  notes?: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ─── Order (Commande) ──────────────────────────────────────────────────────
+
+export interface Order {
+  id: UUID
+  reference_number: string
+  pharmacy_id: UUID
+  pharmacy?: Pharmacy
+  status: OrderStatus
+  total_amount: number
+  comment?: string
+  confirmed_by?: UUID
+  confirmed_by_profile?: Profile
+  confirmed_at?: string
+  cancelled_by?: UUID
+  cancelled_by_profile?: Profile
+  cancelled_at?: string
+  cancel_reason?: string
+  created_by: UUID
+  created_by_profile?: Profile
+  items?: OrderItem[]
+  created_at: string
+  updated_at: string
+}
+
+// ─── OrderItem (Ligne de commande) ─────────────────────────────────────────
+
+export interface OrderItem {
+  id: UUID
+  order_id: UUID
+  product_id: UUID
+  product?: Product
+  quantity_ordered: number
+  unit_price: number
+  quantity_delivered: number
+  comment?: string
   created_at: string
   updated_at: string
 }
@@ -162,6 +224,18 @@ export interface CreateRequisitionInput {
 export interface UpdateRequisitionStatusInput {
   status: RequisitionStatus
   cancel_reason?: string
+}
+
+/** Données minimales pour créer une commande */
+export interface CreateOrderInput {
+  pharmacy_id: UUID
+  items: Array<{
+    product_id: UUID
+    quantity_ordered: number
+    unit_price: number
+    comment?: string
+  }>
+  comment?: string
 }
 
 /** Pagination params */

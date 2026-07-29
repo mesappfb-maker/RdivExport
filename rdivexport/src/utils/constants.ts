@@ -1,6 +1,6 @@
 // ─── RdivExport – Constantes de l'application ───────────────────────────────
 
-import type { RequisitionStatus } from '@/types'
+import type { RequisitionStatus, OrderStatus } from '@/types'
 
 // ─── Application ───────────────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ export const ITEMS_PER_PAGE = 20
 /** Options de pagination disponibles */
 export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const
 
-// ─── Statuts – Étiquettes en français ──────────────────────────────────────
+// ─── Statuts Réquisition – Étiquettes en français ──────────────────────────
 
 /** Map des statuts vers leur libellé en français */
 export const STATUS_LABELS: Record<RequisitionStatus, string> = {
@@ -34,7 +34,7 @@ export const STATUS_LABELS: Record<RequisitionStatus, string> = {
   cancelled: 'Annulée',
 }
 
-// ─── Statuts – Couleurs Tailwind ────────────────────────────────────────────
+// ─── Statuts Réquisition – Couleurs Tailwind ───────────────────────────────
 
 /** Map des statuts vers les classes de couleur (badge) */
 export const STATUS_COLORS: Record<RequisitionStatus, string> = {
@@ -61,6 +61,26 @@ export const STATUS_TEXT_COLORS: Record<RequisitionStatus, string> = {
   validated: 'text-blue-600',
   delivered: 'text-green-600',
   cancelled: 'text-red-600',
+}
+
+// ─── Statuts Commande – Étiquettes en français ────────────────────────────
+
+/** Map des statuts de commande vers leur libellé */
+export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  pending: 'En attente',
+  confirmed: 'Confirmée',
+  partially_delivered: 'Livraison partielle',
+  delivered: 'Livrée',
+  cancelled: 'Annulée',
+}
+
+/** Map des statuts de commande vers les classes de couleur (badge) */
+export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
+  pending: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+  confirmed: 'bg-blue-100 text-blue-700 border-blue-300',
+  partially_delivered: 'bg-orange-100 text-orange-700 border-orange-300',
+  delivered: 'bg-green-100 text-green-700 border-green-300',
+  cancelled: 'bg-red-100 text-red-700 border-red-300',
 }
 
 // ─── Rôles ──────────────────────────────────────────────────────────────────
@@ -93,3 +113,6 @@ export const REQUISITION_PREFIX = 'REQ'
 
 /** Masque pour les numéros de référence */
 export const REQUISITION_REFERENCE_FORMAT = 'REQ-YYYYMMDD-XXXX'
+
+/** Préfixe pour les numéros de commande */
+export const ORDER_PREFIX = 'CMD'

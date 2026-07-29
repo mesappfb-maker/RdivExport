@@ -93,6 +93,47 @@ export interface DeliveryChecklistRow {
   updated_at: string
 }
 
+export interface DepotCatalogRow {
+  id: UUID
+  product_id: UUID
+  available_quantity: number
+  unit_price: string | null
+  is_available: boolean
+  restock_date: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface OrderRow {
+  id: UUID
+  reference_number: string
+  pharmacy_id: UUID
+  status: 'pending' | 'confirmed' | 'partially_delivered' | 'delivered' | 'cancelled'
+  total_amount: string | null
+  comment: string | null
+  confirmed_by: UUID | null
+  confirmed_at: string | null
+  cancelled_by: UUID | null
+  cancelled_at: string | null
+  cancel_reason: string | null
+  created_by: UUID
+  created_at: string
+  updated_at: string
+}
+
+export interface OrderItemRow {
+  id: UUID
+  order_id: UUID
+  product_id: UUID
+  quantity_ordered: number
+  unit_price: string
+  quantity_delivered: number
+  comment: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface AuditLogRow {
   id: UUID
   user_id: UUID
@@ -174,6 +215,65 @@ export interface DeliveryChecklistInsert {
   notes?: string | null
   items_checked?: boolean
   signed_at?: string | null
+}
+
+export interface DepotCatalogInsert {
+  id?: UUID
+  product_id: UUID
+  available_quantity?: number
+  unit_price?: string | null
+  is_available?: boolean
+  restock_date?: string | null
+  notes?: string | null
+}
+
+export interface DepotCatalogUpdate {
+  available_quantity?: number
+  unit_price?: string | null
+  is_available?: boolean
+  restock_date?: string | null
+  notes?: string | null
+}
+
+export interface OrderInsert {
+  id?: UUID
+  reference_number: string
+  pharmacy_id: UUID
+  status?: 'pending' | 'confirmed' | 'partially_delivered' | 'delivered' | 'cancelled'
+  total_amount?: string | null
+  comment?: string | null
+  confirmed_by?: UUID | null
+  confirmed_at?: string | null
+  cancelled_by?: UUID | null
+  cancelled_at?: string | null
+  cancel_reason?: string | null
+  created_by: UUID
+}
+
+export interface OrderItemInsert {
+  id?: UUID
+  order_id: UUID
+  product_id: UUID
+  quantity_ordered: number
+  unit_price?: string
+  quantity_delivered?: number
+  comment?: string | null
+}
+
+export interface OrderUpdate {
+  status?: 'pending' | 'confirmed' | 'partially_delivered' | 'delivered' | 'cancelled'
+  total_amount?: string | null
+  comment?: string | null
+  confirmed_by?: UUID | null
+  confirmed_at?: string | null
+  cancelled_by?: UUID | null
+  cancelled_at?: string | null
+  cancel_reason?: string | null
+}
+
+export interface OrderItemUpdate {
+  quantity_delivered?: number
+  comment?: string | null
 }
 
 export interface AuditLogInsert {
@@ -351,6 +451,69 @@ export interface Database {
           }
         ]
       }
+      depot_catalog: {
+        Row: DepotCatalogRow
+        Insert: DepotCatalogInsert
+        Update: DepotCatalogUpdate
+        Relationships: [
+          {
+            foreignKeyName: 'depot_catalog_product_id_fkey'
+            columns: ['product_id']
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      orders: {
+        Row: OrderRow
+        Insert: OrderInsert
+        Update: OrderUpdate
+        Relationships: [
+          {
+            foreignKeyName: 'orders_pharmacy_id_fkey'
+            columns: ['pharmacy_id']
+            referencedRelation: 'pharmacies'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'orders_created_by_fkey'
+            columns: ['created_by']
+            referencedRelation: 'profiles'
+            referencedColumns: ['user_id']
+          },
+          {
+            foreignKeyName: 'orders_confirmed_by_fkey'
+            columns: ['confirmed_by']
+            referencedRelation: 'profiles'
+            referencedColumns: ['user_id']
+          },
+          {
+            foreignKeyName: 'orders_cancelled_by_fkey'
+            columns: ['cancelled_by']
+            referencedRelation: 'profiles'
+            referencedColumns: ['user_id']
+          }
+        ]
+      }
+      order_items: {
+        Row: OrderItemRow
+        Insert: OrderItemInsert
+        Update: OrderItemUpdate
+        Relationships: [
+          {
+            foreignKeyName: 'order_items_order_id_fkey'
+            columns: ['order_id']
+            referencedRelation: 'orders'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'order_items_product_id_fkey'
+            columns: ['product_id']
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          }
+        ]
+      }
       audit_logs: {
         Row: AuditLogRow
         Insert: AuditLogInsert
@@ -370,6 +533,7 @@ export interface Database {
     Enums: {
       user_role: 'pharmacy_user' | 'main_requisitionist'
       requisition_status: 'draft' | 'pending' | 'validated' | 'delivered' | 'cancelled'
+      order_status: 'pending' | 'confirmed' | 'partially_delivered' | 'delivered' | 'cancelled'
     }
   }
 }
