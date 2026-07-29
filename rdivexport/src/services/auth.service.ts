@@ -67,7 +67,7 @@ function mapRowToProfile(
           created_at: row.pharmacies.created_at,
           updated_at: row.pharmacies.updated_at,
         }
-      : null,
+      : undefined,
     avatar_url: row.avatar_url ?? undefined,
     is_active: row.is_active,
     created_at: row.created_at,

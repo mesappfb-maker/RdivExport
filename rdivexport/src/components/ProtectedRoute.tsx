@@ -1,25 +1,25 @@
+// ─── RdivExport – Route protégée ───────────────────────────────────────────
+// Vérifie l'authentification et les autorisations par rôle avant d'accorder
+// l'accès aux routes protégées.
+
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
-interface ProtectedRouteProps {
-  children: ReactNode
-}
-
 const PHARMACY_USER_ROUTES = [
-  /^\/dashboard(\/\.*)?$/,
-  /^\/requisition\/new(\/\.*)?$/,
-  /^\/requisition\/[^/]+(\/\.*)?$/,
-  /^\/profil(\/\.*)?$/,
+  /^\/dashboard(\/.*)?$/,
+  /^\/requisition\/new(\/.*)?$/,
+  /^\/requisition\/[^/]+(\/.*)?$/,
+  /^\/profil(\/.*)?$/,
 ]
 
 const MAIN_REQUISITIONIST_ROUTES = [
-  /^\/admin(\/\.*)?$/,
-  /^\/profil(\/\.*)?$/,
+  /^\/admin(\/.*)?$/,
+  /^\/profil(\/.*)?$/,
 ]
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { state } = useAuth()
   const location = useLocation()
 
