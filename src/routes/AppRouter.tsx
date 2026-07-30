@@ -17,6 +17,7 @@ import DeliveryListPage from '@/pages/DeliveryListPage'
 import DeliveryChecklistPage from '@/pages/DeliveryChecklistPage'
 import SettingsPage from '@/pages/SettingsPage'
 import DepotStockPage from '@/pages/DepotStockPage'
+import DepotProductsPage from '@/pages/DepotProductsPage'
 import CentralisateurDashboard from '@/pages/CentralisateurDashboard'
 
 export default function AppRouter() {
@@ -45,6 +46,8 @@ export default function AppRouter() {
 
           {/* Routes dépôt */}
           <Route path="/depot/stock" element={<ProtectedRoute><Layout><DepotStockPage /></Layout></ProtectedRoute>} />
+          <Route path="/depot/products" element={<ProtectedRoute><Layout><DepotProductsPage /></Layout></ProtectedRoute>} />
+          <Route path="/depot/requisition" element={<ProtectedRoute><Layout><CreateRequisitionPage /></Layout></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

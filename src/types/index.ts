@@ -209,7 +209,8 @@ export interface AuditLog {
 
 /** Données minimales pour créer une réquisition */
 export interface CreateRequisitionInput {
-  pharmacy_id: UUID
+  pharmacy_id: UUID | null
+  status?: RequisitionStatus
   items: Array<{
     product_id: UUID | null
     product_name?: string

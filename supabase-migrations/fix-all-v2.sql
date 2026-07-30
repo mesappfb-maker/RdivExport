@@ -179,5 +179,57 @@ SET phone = '+243811234508',
     updated_at = now()
 WHERE name ILIKE '%KOLWEZI 2%';
 
--- ─── 10. Vérification ────────────────────────────────────────────────
+-- ─── 10. RLS pour le dépôt : réquisitions et produits ────────────────────────
+DO $$ BEGIN
+  CREATE POLICY "requisitions_insert_depot" ON public.requisitions
+    FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'depot_user')
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "requisitions_select_depot" ON public.requisitions
+    FOR SELECT USING (
+      EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'depot_user')
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "requisition_items_insert_depot" ON public.requisition_items
+    FOR INSERT WITH CHECK (
+      EXISTS (
+        SELECT 1 FROM public.requisitions r
+        WHERE r.id = requisition_id
+        AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'depot_user')
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "products_select_all_auth" ON public.products
+    FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "products_update_depot" ON public.products
+    FOR UPDATE USING (
+      EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'depot_user')
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "products_insert_depot" ON public.products
+    FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'depot_user')
+      OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'main_requisitionist')
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- ─── 11. Vérification ────────────────────────────────────────────────
 SELECT 'Migration v2 terminée avec succès' AS status;

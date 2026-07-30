@@ -241,7 +241,7 @@ export async function createRequisition(
         reference_number: referenceNumber,
         pharmacy_id: input.pharmacy_id,
         created_by: createdBy,
-        status: 'pending',
+        status: input.status ?? 'draft',
         comment: input.comment ?? null,
       })
       .select()

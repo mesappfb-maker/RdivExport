@@ -1,9 +1,10 @@
 // --- RdivExport - Create Requisition Page -------------------------------------
 // Formulaire de création de réquisition : recherche de produits, quantités,
 // commentaire, envoi via WhatsApp ou enregistrement brouillon.
+// Supporte : brouillon multi-jours, reprise, utilisateurs dépôt.
 
 import { useState, useCallback, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useRequisitions } from '@/hooks/useRequisitions'
 import { SearchBar } from '@/components/SearchBar'
@@ -29,11 +30,13 @@ interface SelectedItem {
 
 export default function CreateRequisitionPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { state: authState } = useAuth()
   const profile = authState.profile
   const pharmacyId = profile?.pharmacy_id
+  const role = profile?.role
   const whatsappNumber = profile?.pharmacy?.whatsapp_number
-  const pharmacyName = profile?.pharmacy?.name ?? 'Pharmacie'
+  const pharmacyName = profile?.pharmacy?.name ?? (role === 'depot_user' ? 'Dépôt' : 'Pharmacie')
 
   const { loading, error, createRequisition, clearError } = useRequisitions()
 
@@ -44,18 +47,51 @@ export default function CreateRequisitionPage() {
   const [whatsappDestNumber, setWhatsappNameDestNumber] = useState<string | null>(null)
   const [showManualEntry, setShowManualEntry] = useState(false)
   const [manualProductName, setManualProductName] = useState('')
+  const [loadingDraft, setLoadingDraft] = useState(false)
 
   // Charger le numéro WhatsApp configuré
   useEffect(() => {
     getWhatsAppNumber().then(setWhatsappNameDestNumber)
   }, [])
 
+  // --- Reprise d'un brouillon existant ----------------------------------------
+  useEffect(() => {
+    const draftId = searchParams.get('draft')
+    if (!draftId) return
+    let cancelled = false
+    setLoadingDraft(true)
+    ;(async () => {
+      try {
+        const { data } = await supabase
+          .from('requisition_items')
+          .select('*, products(*)')
+          .eq('requisition_id', draftId)
+        if (cancelled) return
+        if (data && data.length > 0) {
+          setItems(data.map((r: any) => ({
+            id: r.id,
+            product_id: r.product_id ?? '',
+            product_name: r.products?.name ?? r.product_name ?? 'Produit',
+            quantity: r.quantity_requested,
+            unit: r.products?.unit,
+          })))
+        }
+        const { data: reqData } = await supabase
+          .from('requisitions').select('comment').eq('id', draftId).single()
+        if (cancelled) return
+        if (reqData?.comment) setComment(reqData.comment)
+      } finally {
+        if (!cancelled) setLoadingDraft(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [searchParams])
+
   // --- Ajouter un produit manuellement ----------------------------------------
   const handleAddManualProduct = useCallback(async () => {
     const name = manualProductName.trim()
     if (!name) return
 
-    // Vérifier si un produit avec ce nom existe déjà dans la DB
     const { data: existing } = await supabase
       .from('products')
       .select('id')
@@ -63,68 +99,37 @@ export default function CreateRequisitionPage() {
       .limit(1)
 
     let productId: string
-
     if (existing && existing.length > 0) {
-      // Le produit existe, utiliser son ID
       productId = existing[0].id
     } else {
-      // Le produit n'existe pas, essayer de le créer
       productId = crypto.randomUUID()
       const { error: insertError } = await supabase.from('products').insert({
-        id: productId,
-        name: name,
-        main_depot_stock: 0,
+        id: productId, name, main_depot_stock: 0,
       })
-      // Si l'insertion échoue (RLS ou autre), on utilise null
-      // et on s'appuie sur product_name pour l'historique
       if (insertError) {
-        console.warn('[CreateRequisition] Impossible de créer le produit, utilisation du nom uniquement:', insertError.message)
-        productId = '' // sera converti en null dans le service
+        console.warn('[CreateRequisition] Impossible de créer le produit:', insertError.message)
+        productId = ''
       }
     }
 
     setItems((prev) => {
-      if (prev.some((i) => i.product_name.toLowerCase() === name.toLowerCase())) {
-        return prev
-      }
-      return [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          product_id: productId,
-          product_name: name,
-          quantity: 1,
-        },
-      ]
+      if (prev.some((i) => i.product_name.toLowerCase() === name.toLowerCase())) return prev
+      return [...prev, { id: crypto.randomUUID(), product_id: productId, product_name: name, quantity: 1 }]
     })
     setManualProductName('')
   }, [manualProductName])
 
   // --- Ajouter un produit -----------------------------------------------------
   const handleProductSelect = useCallback((product: Product) => {
-    // Éviter les doublons
     setItems((prev) => {
-      if (prev.some((i) => i.product_id === product.id)) {
-        return prev
-      }
-      return [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          product_id: product.id,
-          product_name: product.name,
-          quantity: 1,
-          unit: product.unit,
-        },
-      ]
+      if (prev.some((i) => i.product_id && i.product_id === product.id)) return prev
+      return [...prev, { id: crypto.randomUUID(), product_id: product.id, product_name: product.name, quantity: 1, unit: product.unit }]
     })
   }, [])
 
   // --- Modifier la quantité --------------------------------------------------
   const handleQuantityChange = useCallback((index: number, quantity: number) => {
-    setItems((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, quantity } : item))
-    )
+    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, quantity } : item)))
   }, [])
 
   // --- Supprimer un article ---------------------------------------------------
@@ -132,14 +137,23 @@ export default function CreateRequisitionPage() {
     setItems((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  // --- Enregistrer comme brouillon -------------------------------------------
+  // --- Obtenir le pharmacy_id pour la réquisition ----------------------------
+  const getPharmacyId = useCallback((): string | null => {
+    // Utiliser le pharmacy_id du profil si disponible
+    if (pharmacyId) return pharmacyId
+    // Pour le dépôt, on essaie de trouver la pharmacie "Dépôt" ou on met null
+    return null
+  }, [pharmacyId])
+
+  // --- Enregistrer comme brouillon (draft) ------------------------------------
   const handleSaveDraft = useCallback(async () => {
-    if (!pharmacyId || !profile) return
+    if (!profile) return
     clearError()
 
     const req = await createRequisition(
       {
-        pharmacy_id: pharmacyId,
+        pharmacy_id: getPharmacyId(),
+        status: 'draft',
         items: items.map((item) => ({
           product_id: item.product_id,
           product_name: item.product_name,
@@ -152,19 +166,19 @@ export default function CreateRequisitionPage() {
 
     if (req) {
       setCreatedRequisition(req)
-      setSuccessMessage('Brouillon enregistré avec succès.')
+      setSuccessMessage('Brouillon enregistré. Vous pouvez le reprendre à tout moment.')
     }
-  }, [pharmacyId, profile, items, comment, createRequisition, clearError])
+  }, [profile, items, comment, createRequisition, clearError, getPharmacyId])
 
-  // --- Envoyer via WhatsApp --------------------------------------------------
+  // --- Envoyer via WhatsApp (crée en pending) ---------------------------------
   const handleSendWhatsApp = useCallback(async () => {
-    if (!pharmacyId || !profile) return
+    if (!profile) return
     clearError()
 
-    // 1. Sauvegarder la réquisition
     const req = await createRequisition(
       {
-        pharmacy_id: pharmacyId,
+        pharmacy_id: getPharmacyId(),
+        status: 'pending',
         items: items.map((item) => ({
           product_id: item.product_id,
           product_name: item.product_name,
@@ -180,15 +194,20 @@ export default function CreateRequisitionPage() {
     setCreatedRequisition(req)
     setSuccessMessage('Réquisition envoyée avec succès !')
 
-    // 2. Générer et ouvrir le lien WhatsApp
+    // Si c'était un brouillon, le supprimer
+    const draftId = searchParams.get('draft')
+    if (draftId && draftId !== req.id) {
+      await supabase.from('requisitions').delete().eq('id', draftId)
+      await supabase.from('requisition_items').delete().eq('requisition_id', draftId)
+    }
+
     const message = formatWhatsAppMessage(req, pharmacyName)
-    // Utiliser le numéro configuré en paramètres, sinon le numéro de la pharmacie
     const phone = whatsappDestNumber ?? whatsappNumber ?? ''
     if (phone) {
       const link = generateWhatsAppLink(phone, message)
       window.open(link, '_blank')
     }
-  }, [pharmacyId, profile, items, comment, whatsappNumber, whatsappDestNumber, pharmacyName, createRequisition, clearError])
+  }, [profile, items, comment, whatsappNumber, whatsappDestNumber, pharmacyName, createRequisition, clearError, getPharmacyId, searchParams])
 
   // --- Réinitialiser le formulaire -------------------------------------------
   const handleReset = useCallback(() => {
@@ -197,6 +216,15 @@ export default function CreateRequisitionPage() {
     setSuccessMessage(null)
     setCreatedRequisition(null)
   }, [])
+
+  // --- Écran de chargement brouillon ------------------------------------------
+  if (loadingDraft) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <LoadingSpinner size="lg" message="Chargement du brouillon..." />
+      </div>
+    )
+  }
 
   // --- Écran de succès -------------------------------------------------------
   if (successMessage && createdRequisition) {
@@ -213,16 +241,12 @@ export default function CreateRequisitionPage() {
           <p className="mb-6 text-xs text-gray-400">Réf : {createdRequisition.reference_number}</p>
 
           <div className="flex flex-col gap-3">
-            <button
-              onClick={handleReset}
-              className="flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
+            <button onClick={handleReset}
+              className="flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700">
               Créer une autre réquisition
             </button>
-            <button
-              onClick={() => navigate('/historique')}
-              className="flex h-12 w-full items-center justify-center rounded-xl border border-gray-300 bg-white text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
-            >
+            <button onClick={() => navigate('/historique')}
+              className="flex h-12 w-full items-center justify-center rounded-xl border border-gray-300 bg-white text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50">
               Voir l'historique
             </button>
           </div>
@@ -231,6 +255,8 @@ export default function CreateRequisitionPage() {
     )
   }
 
+  const isResumingDraft = !!searchParams.get('draft')
+
   // --- Écran de création ------------------------------------------------------
   return (
     <div className="min-h-screen bg-gray-50">
@@ -238,91 +264,69 @@ export default function CreateRequisitionPage() {
       <div className="sticky top-0 z-30 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <BackButton />
-          <h1 className="text-lg font-bold text-gray-900">Nouvelle réquisition</h1>
+          <h1 className="text-lg font-bold text-gray-900">{isResumingDraft ? 'Reprendre le brouillon' : 'Nouvelle réquisition'}</h1>
           <div className="w-16" />
         </div>
       </div>
 
       <div className="mx-auto max-w-lg px-4 py-4">
+        {/* Indicateur brouillon en cours */}
+        {isResumingDraft && (
+          <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 p-3">
+            <p className="text-xs font-medium text-blue-700">
+              Vous modifiez un brouillon existant. Enregistrez pour sauvegarder ou envoyez pour soumettre au centralisateur.
+            </p>
+          </div>
+        )}
+
         {/* Barre de recherche */}
         <div className="mb-3">
-          <SearchBar onSelect={handleProductSelect} placeholder="Rechercher un produit…" />
+          <SearchBar onSelect={handleProductSelect} placeholder="Rechercher un produit..." />
         </div>
 
-        {/* Saisie manuelle pour produit non trouvé */}
-        <button
-          type="button"
-          onClick={() => setShowManualEntry(!showManualEntry)}
-          className="mb-3 text-xs font-medium text-blue-600 hover:text-blue-700"
-        >
+        {/* Saisie manuelle */}
+        <button type="button" onClick={() => setShowManualEntry(!showManualEntry)}
+          className="mb-3 text-xs font-medium text-blue-600 hover:text-blue-700">
           {showManualEntry ? 'Masquer la saisie manuelle' : 'Produit non trouvé ? Saisir manuellement'}
         </button>
 
         {showManualEntry && (
           <div className="mb-4 rounded-xl border border-dashed border-blue-300 bg-blue-50/50 p-3">
             <div className="flex gap-2">
-              <input
-                type="text"
-                value={manualProductName}
-                onChange={(e) => setManualProductName(e.target.value)}
+              <input type="text" value={manualProductName} onChange={(e) => setManualProductName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleAddManualProduct() }}
-                placeholder="Nom du produit…"
-                className="block h-11 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-              <button
-                type="button"
-                onClick={handleAddManualProduct}
-                disabled={!manualProductName.trim()}
-                className="flex h-11 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
+                placeholder="Nom du produit..."
+                className="block h-11 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              <button type="button" onClick={handleAddManualProduct} disabled={!manualProductName.trim()}
+                className="flex h-11 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
                 Ajouter
               </button>
             </div>
           </div>
         )}
 
-        {/* Compteur d'articles */}
+        {/* Compteur */}
         {items.length > 0 && (
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-600">
-              {items.length} article{items.length !== 1 ? 's' : ''} sélectionné{items.length !== 1 ? 's' : ''}
-            </p>
-            <button
-              onClick={() => setItems([])}
-              className="text-xs font-medium text-red-600 hover:text-red-700"
-            >
-              Tout supprimer
-            </button>
+            <p className="text-sm font-medium text-gray-600">{items.length} article{items.length !== 1 ? 's' : ''}</p>
+            <button onClick={() => setItems([])} className="text-xs font-medium text-red-600 hover:text-red-700">Tout supprimer</button>
           </div>
         )}
 
-        {/* Liste des articles sélectionnés */}
+        {/* Liste */}
         <div className="space-y-2">
           {items.map((item, index) => (
-            <RequisitionItemRow
-              key={item.id}
-              item={item}
-              index={index}
-              onQuantityChange={handleQuantityChange}
-              onRemove={handleRemove}
-            />
+            <RequisitionItemRow key={item.id} item={item} index={index} onQuantityChange={handleQuantityChange} onRemove={handleRemove} />
           ))}
         </div>
 
         {/* Commentaire */}
         {items.length > 0 && (
           <div className="mt-4">
-            <label htmlFor="comment" className="mb-1.5 block text-sm font-medium text-gray-700">
-              Commentaire (optionnel)
-            </label>
-            <textarea
-              id="comment"
-              rows={3}
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Ajoutez une note ou une précision…"
-              className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
+            <label htmlFor="comment" className="mb-1.5 block text-sm font-medium text-gray-700">Commentaire (optionnel)</label>
+            <textarea id="comment" rows={3} value={comment} onChange={(e) => setComment(e.target.value)}
+              placeholder="Ajoutez une note ou une précision..."
+              className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
           </div>
         )}
 
@@ -336,11 +340,8 @@ export default function CreateRequisitionPage() {
         {/* Boutons d'action */}
         {items.length > 0 && (
           <div className="mt-6 space-y-3">
-            <button
-              onClick={handleSendWhatsApp}
-              disabled={loading}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-green-600 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 active:bg-green-800"
-            >
+            <button onClick={handleSendWhatsApp} disabled={loading}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-green-600 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60">
               {loading ? <LoadingSpinner size="sm" /> : (
                 <>
                   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
@@ -350,25 +351,20 @@ export default function CreateRequisitionPage() {
                 </>
               )}
             </button>
-            <button
-              onClick={handleSaveDraft}
-              disabled={loading}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? <LoadingSpinner size="sm" /> : 'Enregistrer'}
+            <button onClick={handleSaveDraft} disabled={loading}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60">
+              {loading ? <LoadingSpinner size="sm" /> : (isResumingDraft ? 'Mettre à jour le brouillon' : 'Enregistrer le brouillon')}
             </button>
           </div>
         )}
 
-        {/* Message vide si aucun article */}
-        {items.length === 0 && (
+        {/* Vide */}
+        {items.length === 0 && !isResumingDraft && (
           <div className="mt-8 flex flex-col items-center justify-center text-center">
             <svg className="mb-3 h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
-            <p className="text-sm font-medium text-gray-500">
-              Recherchez un produit ci-dessus pour commencer
-            </p>
+            <p className="text-sm font-medium text-gray-500">Recherchez un produit ci-dessus pour commencer</p>
           </div>
         )}
       </div>
