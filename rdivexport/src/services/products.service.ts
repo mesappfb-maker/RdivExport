@@ -3,23 +3,22 @@
 
 import { supabase } from '@/lib/supabase'
 import type { Product, PaginationParams, PaginatedResponse } from '@/types'
-import type { ProductRow } from '@/types/database'
 import type { UUID } from '@/types/database'
 
 // ─── Utilitaire interne ─────────────────────────────────────────────────────
 
 /** Transforme une ligne de base de données en objet Product métier */
-function mapRowToProduct(row: ProductRow): Product {
+function mapRowToProduct(row: any): Product {
   return {
     id: row.id,
     name: row.name,
     description: row.description ?? undefined,
     code: row.code ?? undefined,
-    main_depot_stock: row.main_depot_stock,
+    main_depot_stock: row.main_depot_stock ?? 0,
     unit: row.unit ?? 'unité',
     category: row.category ?? undefined,
     min_stock_threshold: row.min_stock_threshold ?? 0,
-    is_active: row.is_active,
+    is_active: row.is_active !== false,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }

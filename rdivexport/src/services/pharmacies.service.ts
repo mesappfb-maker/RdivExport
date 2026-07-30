@@ -3,22 +3,20 @@
 
 import { supabase } from '@/lib/supabase'
 import type { Pharmacy } from '@/types'
-import type { PharmacyRow } from '@/types/database'
-import type { UUID } from '@/types/database'
 
 // ─── Utilitaire interne ─────────────────────────────────────────────────────
 
 /** Transforme une ligne de base de données en objet Pharmacy métier */
-function mapRowToPharmacy(row: PharmacyRow): Pharmacy {
+function mapRowToPharmacy(row: any): Pharmacy {
   return {
     id: row.id,
     name: row.name,
     code: row.code,
-    address: row.address,
-    phone: row.phone,
-    whatsapp_number: row.whatsapp_number,
-    email: row.email,
-    is_active: row.is_active,
+    address: (row as any).address ?? null,
+    phone: (row as any).phone ?? null,
+    whatsapp_number: (row as any).whatsapp_number ?? null,
+    email: (row as any).email ?? null,
+    is_active: (row as any).is_active !== false,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }

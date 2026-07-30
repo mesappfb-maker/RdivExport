@@ -45,10 +45,14 @@ export default function SettingsPage() {
 
   const loadProfiles = useCallback(async () => {
     setProfilesLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*, pharmacies(*)')
       .order('full_name')
+    if (error) {
+      console.error('[Settings] loadProfiles error:', error.message)
+      setActionMsg({ type: 'error', text: 'Erreur chargement profils : ' + error.message })
+    }
     if (data) {
       setProfiles(data as Array<Profile & { pharmacy?: Pharmacy }>)
     }
@@ -59,7 +63,6 @@ export default function SettingsPage() {
     const cleaned = whatsappNumber.trim()
     if (!cleaned) return
 
-    // Vérifier qu'il y a des chiffres
     const digits = cleaned.replace(/\D/g, '')
     if (digits.length < 8) {
       setWhatsappNameError('Le numéro doit contenir au moins 8 chiffres.')
@@ -77,24 +80,35 @@ export default function SettingsPage() {
       setTimeout(() => { setWhatsappNameSaved(false); setActionMsg(null) }, 3000)
     } else {
       setWhatsappNameError(result.error)
+      if (result.error.includes("n'existe pas")) {
+        setActionMsg({ type: 'error', text: 'La table app_settings n\'existe pas. Exécutez la migration SQL dans Supabase Dashboard > SQL Editor.' })
+        setTimeout(() => setActionMsg(null), 8000)
+      }
     }
   }, [whatsappNumber])
 
   const handleToggleActive = useCallback(async (userId: string, currentActive: boolean) => {
     setTogglingId(userId)
+    const newActive = !currentActive
     const { error } = await supabase
       .from('profiles')
-      .update({ is_active: !currentActive })
+      .update({ is_active: newActive })
       .eq('id', userId)
     if (error) {
       setActionMsg({ type: 'error', text: 'Erreur: ' + error.message })
+      if (error.message.includes('is_active') || error.message.includes('schema cache')) {
+        setActionMsg({ type: 'error', text: 'La colonne is_active n\'existe pas sur profiles. Exécutez la migration SQL dans Supabase.' })
+      }
     } else {
-      setActionMsg({ type: 'success', text: currentActive ? 'Compte désactivé.' : 'Compte activé.' })
-      setTimeout(() => setActionMsg(null), 3000)
+      setActionMsg({ type: 'success', text: newActive ? 'Compte activé.' : 'Compte désactivé.' })
+      // Mettre à jour l'état local immédiatement
+      setProfiles((prev) =>
+        prev.map((p) => (p.id === userId ? { ...p, is_active: newActive } : p))
+      )
     }
+    setTimeout(() => setActionMsg(null), 4000)
     setTogglingId(null)
-    loadProfiles()
-  }, [loadProfiles])
+  }, [])
 
   const handleDeleteUser = useCallback(async () => {
     if (!deleteTarget) return
@@ -116,12 +130,19 @@ export default function SettingsPage() {
     } else {
       setActionMsg({ type: 'success', text: 'Compte supprimé.' })
       setTimeout(() => setActionMsg(null), 3000)
+      // Retirer de la liste locale
+      setProfiles((prev) =>
+        prev.map((p) =>
+          p.id === deleteTarget.id
+            ? { ...p, is_active: false, full_name: `[Supprimé] ${p.full_name}` }
+            : p
+        )
+      )
     }
     setDeleting(false)
     setDeleteTarget(null)
     setDeleteReason('')
-    loadProfiles()
-  }, [deleteTarget, deleteReason, profile, loadProfiles])
+  }, [deleteTarget, deleteReason, profile])
 
   const handleResetPassword = useCallback(async (email: string, name: string) => {
     setActionMsg({ type: 'success', text: `Envoi du lien de réinitialisation à ${email}...` })
@@ -202,6 +223,8 @@ export default function SettingsPage() {
                           <p className={`truncate text-sm font-medium ${p.is_active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>{p.full_name}</p>
                           <p className="truncate text-xs text-gray-500">{p.email}</p>
                           <p className="truncate text-[11px] text-gray-400">{p.pharmacy?.name ?? 'Sans pharmacie'} · {ROLE_LABELS[p.role] ?? p.role}</p>
+                          {p.pharmacy?.phone && <p className="truncate text-[11px] text-green-600">Tél : {p.pharmacy.phone}</p>}
+                          {p.pharmacy?.whatsapp_number && <p className="truncate text-[11px] text-green-600">WhatsApp : {p.pharmacy.whatsapp_number}</p>}
                         </div>
                       </div>
                       <button

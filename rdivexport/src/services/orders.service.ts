@@ -66,8 +66,8 @@ function enrichOrder(row: OrderRowWithJoins, pharmacy?: Pharmacy | null, items?:
   return { ...base, pharmacy: pharmacy ?? undefined, items, confirmed_by_profile: row.confirmed_by ? profiles?.get(row.confirmed_by) : undefined, cancelled_by_profile: row.cancelled_by ? profiles?.get(row.cancelled_by) : undefined, created_by_profile: row.created_by ? profiles?.get(row.created_by) : undefined }
 }
 
-function mapRowToProfile(row: { id: UUID; full_name: string; email: string; phone: string | null; role: string; pharmacy_id: UUID | null; avatar_url: string | null; is_active: boolean; created_at: string; updated_at: string }): Profile {
-  return { id: row.id, full_name: row.full_name, email: row.email, phone: row.phone ?? undefined, role: row.role as Profile['role'], pharmacy_id: row.pharmacy_id ?? undefined, is_active: row.is_active, created_at: row.created_at, updated_at: row.updated_at }
+function mapRowToProfile(row: any): Profile {
+  return { id: row.id, full_name: row.full_name, email: row.email, phone: row.phone ?? undefined, role: row.role as Profile['role'], pharmacy_id: row.pharmacy_id ?? undefined, is_active: row.is_active !== false, created_at: row.created_at, updated_at: row.updated_at }
 }
 
 async function getOrderItems(orderId: UUID): Promise<OrderItem[]> {

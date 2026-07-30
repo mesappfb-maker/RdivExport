@@ -164,24 +164,24 @@ function enrichRequisition(
 }
 
 /** Transforme une ligne de produit DB en objet Product métier */
-function mapRowToProduct(row: NonNullable<RequisitionItemRowWithProduct['products']>): Product {
+function mapRowToProduct(row: any): Product {
   return {
     id: row.id,
     name: row.name,
     description: row.description ?? undefined,
     code: row.code ?? undefined,
-    main_depot_stock: row.main_depot_stock,
+    main_depot_stock: row.main_depot_stock ?? 0,
     unit: row.unit ?? 'unité',
     category: row.category ?? undefined,
     min_stock_threshold: row.min_stock_threshold ?? 0,
-    is_active: row.is_active,
+    is_active: row.is_active !== false,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
 }
 
 /** Transforme une ligne de profil en objet Profile métier */
-function mapRowToProfile(row: { id: UUID; full_name: string; email: string; phone: string | null; role: string; pharmacy_id: UUID | null; avatar_url: string | null; is_active: boolean; created_at: string; updated_at: string }): Profile {
+function mapRowToProfile(row: any): Profile {
   return {
     id: row.id,
     full_name: row.full_name,
@@ -189,7 +189,7 @@ function mapRowToProfile(row: { id: UUID; full_name: string; email: string; phon
     phone: row.phone ?? undefined,
     role: row.role as Profile['role'],
     pharmacy_id: row.pharmacy_id ?? undefined,
- is_active: row.is_active,
+    is_active: row.is_active !== false,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
