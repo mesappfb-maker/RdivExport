@@ -207,7 +207,32 @@ export async function createRequisition(
   createdBy: UUID
 ): Promise<{ data: Requisition | null; error: string | null }> {
   try {
-    const referenceNumber = generateReferenceNumber()
+    // Récupérer le code de la pharmacie pour la référence
+    let pharmacyCode: string | undefined
+    let todayCount = 0
+    try {
+      const { data: pharm } = await supabase
+        .from('pharmacies')
+        .select('code')
+        .eq('id', input.pharmacy_id)
+        .single()
+      if (pharm?.code) {
+        pharmacyCode = pharm.code
+        // Compter les réquisitions de cette pharmacie aujourd'hui
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const { count } = await supabase
+          .from('requisitions')
+          .select('*', { count: 'exact', head: true })
+          .eq('pharmacy_id', input.pharmacy_id)
+          .gte('created_at', today.toISOString())
+        todayCount = count ?? 0
+      }
+    } catch (_) {
+      // En cas d'erreur, on utilise le fallback aléatoire
+    }
+
+    const referenceNumber = generateReferenceNumber(pharmacyCode, todayCount)
 
     // 1. Insérer l'en-tête de réquisition
     const { data: requisition, error: reqError } = await supabase
@@ -729,6 +754,73 @@ export async function getConsolidatedRequisitions(
 }
 
 // ─── Fonctions internes ─────────────────────────────────────────────────────
+
+/**
+ * Met à jour une réquisition existante (articles uniquement).
+ * Seules les réquisitions en statut pending ou draft peuvent être modifiées.
+ */
+export async function updateRequisitionItems(
+  requisitionId: UUID,
+  items: Array<{ product_id: string; product_name?: string; quantity_requested: number }>,
+  comment?: string
+): Promise<{ data: Requisition | null; error: string | null }> {
+  try {
+    // 1. Vérifier que la réquisition est modifiable
+    const { data: req, error: reqError } = await supabase
+      .from('requisitions')
+      .select('status')
+      .eq('id', requisitionId)
+      .single()
+
+    if (reqError || !req) {
+      return { data: null, error: 'Réquisition introuvable.' }
+    }
+
+    if (req.status !== 'pending' && req.status !== 'draft') {
+      return { data: null, error: 'Cette réquisition ne peut plus être modifiée (déjà traitée par le centralisateur).' }
+    }
+
+    // 2. Supprimer les anciens items
+    const { error: delError } = await supabase
+      .from('requisition_items')
+      .delete()
+      .eq('requisition_id', requisitionId)
+
+    if (delError) {
+      return { data: null, error: 'Erreur lors de la mise à jour: ' + delError.message }
+    }
+
+    // 3. Insérer les nouveaux items
+    const itemsToInsert = items.map((item) => ({
+      requisition_id: requisitionId,
+      product_id: item.product_id,
+      product_name: item.product_name ?? null,
+      quantity_requested: item.quantity_requested,
+    }))
+
+    const { error: insError } = await supabase
+      .from('requisition_items')
+      .insert(itemsToInsert)
+
+    if (insError) {
+      return { data: null, error: 'Erreur lors de l\'insertion des articles : ' + insError.message }
+    }
+
+    // 4. Mettre à jour le commentaire si fourni
+    if (comment !== undefined) {
+      await supabase
+        .from('requisitions')
+        .update({ comment: comment || null, updated_at: new Date().toISOString() })
+        .eq('id', requisitionId)
+    }
+
+    // 5. Retourner la réquisition complète
+    return await getRequisitionById(requisitionId)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erreur lors de la mise à jour'
+    return { data: null, error: message }
+  }
+}
 
 /** Récupère tous les items d'une réquisition avec les produits associés */
 async function getRequisitionItems(requisitionId: UUID): Promise<RequisitionItem[]> {

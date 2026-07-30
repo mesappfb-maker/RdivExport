@@ -130,9 +130,12 @@ export function generateWhatsAppLink(phone: string, message: string): string {
 // ─── Numéro de référence ────────────────────────────────────────────────────
 
 /**
- * Génère un numéro de référence de réquisition au format REQ-AAMMJJ-XXXX.
+ * Génère un numéro de référence de réquisition au format REQ-AAMMJJ-CODE.
+ * Utilise le code de la pharmacie suivi d'un compteur sur 2 chiffres.
+ * @param pharmacyCode - Code court de la pharmacie (ex: "KLW")
+ * @param todayCount - Nombre de réquisitions déjà créées pour cette pharmacie aujourd'hui
  */
-export function generateReferenceNumber(): string {
+export function generateReferenceNumber(pharmacyCode?: string, todayCount?: number): string {
   const now = new Date()
 
   const year = now.getFullYear()
@@ -141,9 +144,15 @@ export function generateReferenceNumber(): string {
 
   const datePart = `${year}${month}${day}`
 
-  // Partie aléatoire sur 4 caractères
-  const randomPart = String(Math.floor(Math.random() * 10000)).padStart(4, '0')
+  // Utiliser le code pharmacie + compteur, ou fallback aléatoire
+  if (pharmacyCode) {
+    const code = pharmacyCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
+    const count = (todayCount ?? 0) + 1
+    return `REQ-${datePart}-${code}${String(count).padStart(2, '0')}`
+  }
 
+  // Fallback si pas de code pharmacie
+  const randomPart = String(Math.floor(Math.random() * 10000)).padStart(4, '0')
   return `REQ-${datePart}-${randomPart}`
 }
 

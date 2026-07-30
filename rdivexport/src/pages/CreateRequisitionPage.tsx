@@ -62,17 +62,25 @@ export default function CreateRequisitionPage() {
       .ilike('name', name)
       .limit(1)
 
-    const productId = existing && existing.length > 0
-      ? existing[0].id
-      : crypto.randomUUID()
+    let productId: string
 
-    // Si le produit n'existe pas, le créer dans la table products
-    if (!existing || existing.length === 0) {
-      await supabase.from('products').insert({
+    if (existing && existing.length > 0) {
+      // Le produit existe, utiliser son ID
+      productId = existing[0].id
+    } else {
+      // Le produit n'existe pas, essayer de le créer
+      productId = crypto.randomUUID()
+      const { error: insertError } = await supabase.from('products').insert({
         id: productId,
         name: name,
         main_depot_stock: 0,
       })
+      // Si l'insertion échoue (RLS ou autre), on utilise null
+      // et on s'appuie sur product_name pour l'historique
+      if (insertError) {
+        console.warn('[CreateRequisition] Impossible de créer le produit, utilisation du nom uniquement:', insertError.message)
+        productId = '' // sera traité comme null par Supabase
+      }
     }
 
     setItems((prev) => {

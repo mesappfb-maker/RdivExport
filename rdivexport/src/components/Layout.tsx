@@ -2,9 +2,11 @@
 // Mise en page mobile-first avec header fixe, zone de contenu scrollable et
 // barre de navigation inférieure fixe (safe-area-inset-bottom).
 
+import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { getInitials } from '@/utils/formatters'
 import type { Role } from '@/types'
 
@@ -170,6 +172,8 @@ export function Layout({ children }: { children?: ReactNode }) {
   const { state, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const { canInstall, isIOS, promptInstall } = usePWAInstall()
+  const [showInstallBanner, setShowInstallBanner] = useState(false)
 
   const profile = state.profile
   const role = profile?.role ?? 'pharmacy_user'
@@ -177,6 +181,15 @@ export function Layout({ children }: { children?: ReactNode }) {
   const initials = getInitials(fullName)
 
   const navItems = getNavItems(role)
+
+  // Afficher le bandeau d'installation après 3 secondes
+  useEffect(() => {
+    if (!canInstall && !isIOS) return
+    const timer = setTimeout(() => {
+      if (canInstall || isIOS) setShowInstallBanner(true)
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [canInstall, isIOS])
 
   const handleLogout = async () => {
     await logout()
@@ -239,8 +252,32 @@ export function Layout({ children }: { children?: ReactNode }) {
         </div>
       </header>
 
+      {/* ── Bandeau PWA Install ── */}
+      {showInstallBanner && (canInstall || isIOS) && (
+        <div className="fixed top-14 left-0 right-0 z-30 border-b border-blue-200 bg-blue-600 px-4 py-2.5 text-center">
+          <div className="mx-auto flex max-w-lg items-center justify-between gap-2">
+            <p className="flex-1 text-xs font-medium text-white">
+              {isIOS
+                ? 'Installez RdivExport : appuyez sur Partager > Sur l\'écran d\'accueil'
+                : 'Installez RdivExport sur votre appareil'}
+            </p>
+            <div className="flex gap-2">
+              {canInstall && (
+                <button onClick={() => { promptInstall(); setShowInstallBanner(false) }}
+                  className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-blue-600 shadow-sm">
+                  Installer
+                </button>
+              )}
+              <button onClick={() => setShowInstallBanner(false)}
+                className="rounded-lg bg-blue-500 px-2 py-1.5 text-xs font-medium text-white">
+                </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Zone de contenu principal ── */}
-      <main className="flex-1 px-4 pb-24 pt-[4.5rem]">
+      <main className={`flex-1 px-4 pb-24 ${showInstallBanner ? 'pt-[7.5rem]' : 'pt-[4.5rem]'}`}>
         {children ?? <Outlet />}
       </main>
 
