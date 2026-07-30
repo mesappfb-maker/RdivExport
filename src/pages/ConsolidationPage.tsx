@@ -25,6 +25,8 @@ export default function ConsolidationPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<RequisitionStatus | ''>('')
   const [dateFrom, setDateFrom] = useState('')
+  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([])
+  const [pharmacyFilter, setPharmacyFilter] = useState('')
 
   // Charger les pharmacies pour le filtre
   useEffect(() => {
