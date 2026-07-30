@@ -1,17 +1,21 @@
 // --- RdivExport - Requisition History Page -----------------------------------
-// Historique des requisitions avec filtres par statut.
+// Historique des requisitions avec filtres par statut, y compris les brouillons.
+// Les brouillons ont un lien direct pour reprendre l'édition.
 
 import { useEffect, useState, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useRequisitions } from '@/hooks/useRequisitions'
 import { RequisitionCard } from '@/components/RequisitionCard'
 import { EmptyState } from '@/components/EmptyState'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { formatDateShort } from '@/utils/formatters'
 import type { RequisitionStatus } from '@/types'
 import type { RequisitionFilters } from '@/services/requisitions.service'
 
-const STATUS_TABS: Array<{ value: RequisitionStatus | ''; label: string }> = [
+const STATUS_TABS: Array<{ value: RequisitionStatus | 'draft' | ''; label: string }> = [
   { value: '', label: 'Toutes' },
+  { value: 'draft', label: 'Brouillons' },
   { value: 'pending', label: 'En attente' },
   { value: 'validated', label: 'Validees' },
   { value: 'delivered', label: 'Livrees' },
@@ -22,12 +26,12 @@ export default function RequisitionHistoryPage() {
   const { state: authState } = useAuth()
   const pharmacyId = authState.profile?.pharmacy_id
   const { requisitions, loading, error, fetchRequisitions } = useRequisitions()
-  const [activeStatus, setActiveStatus] = useState<RequisitionStatus | ''>('')
+  const [activeStatus, setActiveStatus] = useState<RequisitionStatus | 'draft' | ''>('')
 
   const loadData = useCallback(async () => {
     if (!pharmacyId) return
     const filters: RequisitionFilters = {}
-    if (activeStatus) filters.status = activeStatus
+    if (activeStatus) filters.status = activeStatus as RequisitionStatus
     await fetchRequisitions(pharmacyId, filters)
   }, [pharmacyId, activeStatus, fetchRequisitions])
 
@@ -35,7 +39,7 @@ export default function RequisitionHistoryPage() {
     loadData()
   }, [loadData])
 
-  const handleTabChange = useCallback((status: RequisitionStatus | '') => {
+  const handleTabChange = useCallback((status: RequisitionStatus | 'draft' | '') => {
     setActiveStatus(status)
   }, [])
 
@@ -78,17 +82,48 @@ export default function RequisitionHistoryPage() {
         )}
         {requisitions.data.length === 0 ? (
           <EmptyState
-            title="Aucune requisation"
-            description="Vous n'avez pas encore de requisation avec ce statut."
+            title="Aucune requisition"
+            description={activeStatus === 'draft'
+              ? "Vous n'avez pas de brouillon en cours. Creez une nouvelle requisition et enregistrez-la comme brouillon."
+              : "Vous n'avez pas encore de requisition avec ce statut."
+            }
           />
         ) : (
           <>
             <p className="mb-3 text-xs text-gray-400">
-              {requisitions.total} requisation{requisitions.total !== 1 ? 's' : ''}
+              {requisitions.total} requisition{requisitions.total !== 1 ? 's' : ''}
             </p>
             <div className="space-y-3">
               {requisitions.data.map((req) => (
-                <RequisitionCard key={req.id} requisition={req} />
+                req.status === 'draft' ? (
+                  <Link
+                    key={req.id}
+                    to={`/requisition/${req.id}`}
+                    className="block rounded-xl border border-blue-200 bg-blue-50/50 p-4 shadow-sm transition-all hover:border-blue-300 hover:shadow-md active:scale-[0.98]"
+                  >
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-gray-900">{req.reference_number}</p>
+                        <p className="truncate text-xs text-gray-500">
+                          Brouillon · {formatDateShort(req.created_at)}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                        Brouillon
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-gray-500">
+                        {(req.items?.length ?? 0)} article{req.items?.length !== 1 ? 's' : ''}
+                      </p>
+                      <span className="text-xs font-semibold text-blue-600">
+                        Reprendre →
+                      </span>
+                    </div>
+                  </Link>
+                ) : (
+                  <RequisitionCard key={req.id} requisition={req} />
+                )
               ))}
             </div>
             {requisitions.page < requisitions.totalPages && (
