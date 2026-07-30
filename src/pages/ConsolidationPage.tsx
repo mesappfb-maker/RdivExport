@@ -3,11 +3,13 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { getConsolidatedRequisitions } from '@/services/requisitions.service'
+import { supabase } from '@/lib/supabase'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EmptyState } from '@/components/EmptyState'
 import { formatQuantity } from '@/utils/formatters'
 import type { ConsolidatedProduct } from '@/services/requisitions.service'
 import type { RequisitionStatus } from '@/types'
+import type { Pharmacy } from '@/types'
 
 const STATUS_OPTIONS: Array<{ value: RequisitionStatus | ''; label: string }> = [
   { value: '', label: 'Tous' },
@@ -24,12 +26,20 @@ export default function ConsolidationPage() {
   const [statusFilter, setStatusFilter] = useState<RequisitionStatus | ''>('')
   const [dateFrom, setDateFrom] = useState('')
 
+  // Charger les pharmacies pour le filtre
+  useEffect(() => {
+    supabase.from('pharmacies').select('id, name, code').order('name').then(({ data }) => {
+      if (data) setPharmacies(data as Pharmacy[])
+    })
+  }, [])
+
   const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const filters: { status?: RequisitionStatus; dateFrom?: string } = {}
+    const filters: { status?: RequisitionStatus; dateFrom?: string; pharmacyId?: string } = {}
     if (statusFilter) filters.status = statusFilter
     if (dateFrom) filters.dateFrom = dateFrom
+    if (pharmacyFilter) filters.pharmacyId = pharmacyFilter
     const result = await getConsolidatedRequisitions(filters)
     if (result.error) {
       setError(result.error)
@@ -38,7 +48,7 @@ export default function ConsolidationPage() {
       setProducts(result.data)
     }
     setLoading(false)
-  }, [statusFilter, dateFrom])
+  }, [statusFilter, dateFrom, pharmacyFilter])
 
   useEffect(() => {
     loadData()
@@ -105,11 +115,11 @@ export default function ConsolidationPage() {
             {products.map((product) => {
               const isExpanded = expandedId === product.product_id
               return (
-                <div key={product.product_id} className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div key={product.product_id} className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
                   <button
                     type="button"
                     onClick={() => toggleExpand(product.product_id)}
-                    className="flex w-full items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-gray-50 active:bg-gray-100"
+                    className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-gray-50 active:bg-gray-100"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-gray-900">{product.product_name}</p>
@@ -117,21 +127,12 @@ export default function ConsolidationPage() {
                         {product.pharmacy_count} pharmacie{product.pharmacy_count !== 1 ? 's' : ''}
                       </p>
                     </div>
-                    <div className="flex flex-shrink-0 items-center gap-3">
-                      <div className="text-right">
-                        <p className="text-base font-bold text-blue-700">{formatQuantity(product.total_requested)}</p>
-                        <p className="text-xs text-gray-400">demande{product.total_requested > 1 ? 's' : ''}</p>
-                      </div>
+                    <div className="flex flex-shrink-0 items-center gap-2">
+                      <span className="text-sm font-bold text-blue-700">{formatQuantity(product.total_requested)}</span>
                       {product.total_delivered > 0 && (
-                        <div className="text-right">
-                          <p className="text-base font-bold text-green-700">{formatQuantity(product.total_delivered)}</p>
-                          <p className="text-xs text-gray-400">livre{product.total_delivered > 1 ? 's' : ''}</p>
-                        </div>
+                        <span className="text-xs text-green-600">L: {formatQuantity(product.total_delivered)}</span>
                       )}
-                      <svg
-                        className={`h-5 w-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                        fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
-                      >
+                      <svg className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                       </svg>
                     </div>
