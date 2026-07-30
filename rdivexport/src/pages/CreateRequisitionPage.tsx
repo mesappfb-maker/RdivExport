@@ -122,7 +122,7 @@ export default function CreateRequisitionPage() {
         }),
         comment: comment.trim() || undefined,
       },
-      profile.user_id
+      profile.id
     )
 
     if (req) {
@@ -150,7 +150,7 @@ export default function CreateRequisitionPage() {
         }),
         comment: comment.trim() || undefined,
       },
-      profile.user_id
+      profile.id
     )
 
     if (!req) return

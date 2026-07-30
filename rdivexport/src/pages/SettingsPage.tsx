@@ -9,15 +9,6 @@ import { getSetting, setSetting } from '@/services/settings.service'
 import { supabase } from '@/lib/supabase'
 import { getInitials } from '@/utils/formatters'
 import type { Profile, Pharmacy } from '@/types'
-import type { Role } from '@/types'
-
-const ROLE_OPTIONS: Array<{ value: Role; label: string }> = [
-  { value: 'main_requisitionist', label: 'Superviseur' },
-  { value: 'centralisateur', label: 'Centralisateur' },
-  { value: 'depot_user', label: 'Dépôt' },
-  { value: 'pharmacy_user', label: 'Pharmacie / Shop' },
-]
-
 // --- Composant ----------------------------------------------------------------
 
 export default function SettingsPage() {
@@ -80,25 +71,6 @@ export default function SettingsPage() {
       .eq('id', userId)
     loadProfiles()
   }, [loadProfiles])
-
-  // --- Changer le rôle d'un utilisateur -------------------------------------
-  const handleRoleChange = useCallback(async (userId: string, newRole: Role) => {
-    await supabase
-      .from('profiles')
-      .update({ role: newRole })
-      .eq('id', userId)
-    loadProfiles()
-  }, [loadProfiles])
-
-  // --- Réinitialiser le mot de passe d'un utilisateur ------------------------
-  const handleResetPassword = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email)
-    if (error) {
-      alert('Erreur: ' + error.message)
-    } else {
-      alert('Un email de réinitialisation a été envoyé à ' + email)
-    }
-  }, [])
 
   // --- Rendu ------------------------------------------------------------------
   return (

@@ -42,7 +42,6 @@ export interface Pharmacy {
 
 export interface Profile {
   id: UUID
-  user_id: UUID
   full_name: string
   email: string
   phone?: string

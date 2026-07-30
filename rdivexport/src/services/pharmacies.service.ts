@@ -107,7 +107,7 @@ export async function getPharmacyByUserId(
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('pharmacy_id')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .single()
 
     if (profileError) {

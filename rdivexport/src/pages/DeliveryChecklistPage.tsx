@@ -45,7 +45,7 @@ export default function DeliveryChecklistPage() {
 
   const handleSubmit = useCallback(async () => {
     if (!id || !profile) return
-    const result = await submitChecklist(id, profile.user_id)
+    const result = await submitChecklist(id, profile.id)
     if (result) setSuccess(true)
   }, [id, profile, submitChecklist])
 

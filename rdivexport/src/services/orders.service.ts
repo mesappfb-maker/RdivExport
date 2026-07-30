@@ -66,8 +66,8 @@ function enrichOrder(row: OrderRowWithJoins, pharmacy?: Pharmacy | null, items?:
   return { ...base, pharmacy: pharmacy ?? undefined, items, confirmed_by_profile: row.confirmed_by ? profiles?.get(row.confirmed_by) : undefined, cancelled_by_profile: row.cancelled_by ? profiles?.get(row.cancelled_by) : undefined, created_by_profile: row.created_by ? profiles?.get(row.created_by) : undefined }
 }
 
-function mapRowToProfile(row: { id: UUID; user_id: UUID; full_name: string; email: string; phone: string | null; role: string; pharmacy_id: UUID | null; avatar_url: string | null; is_active: boolean; created_at: string; updated_at: string }): Profile {
-  return { id: row.id, user_id: row.user_id, full_name: row.full_name, email: row.email, phone: row.phone ?? undefined, role: row.role as Profile['role'], pharmacy_id: row.pharmacy_id ?? undefined, is_active: row.is_active, created_at: row.created_at, updated_at: row.updated_at }
+function mapRowToProfile(row: { id: UUID; full_name: string; email: string; phone: string | null; role: string; pharmacy_id: UUID | null; avatar_url: string | null; is_active: boolean; created_at: string; updated_at: string }): Profile {
+  return { id: row.id, full_name: row.full_name, email: row.email, phone: row.phone ?? undefined, role: row.role as Profile['role'], pharmacy_id: row.pharmacy_id ?? undefined, is_active: row.is_active, created_at: row.created_at, updated_at: row.updated_at }
 }
 
 async function getOrderItems(orderId: UUID): Promise<OrderItem[]> {
@@ -147,7 +147,7 @@ export async function getOrderById(id: UUID): Promise<{ data: Order | null; erro
     const items = await getOrderItems(id)
     const profileIds: UUID[] = [row.created_by, row.confirmed_by, row.cancelled_by].filter((v): v is UUID => v !== null)
     let profileMap: Map<string, Profile> | undefined
-    if (profileIds.length > 0) { const { data: profiles } = await supabase.from('profiles').select('*').in('user_id', profileIds); if (profiles && profiles.length > 0) { profileMap = new Map(profiles.map((p) => [p.user_id, mapRowToProfile(p)])) } }
+    if (profileIds.length > 0) { const { data: profiles } = await supabase.from('profiles').select('*').in('id', profileIds); if (profiles && profiles.length > 0) { profileMap = new Map(profiles.map((p) => [p.id, mapRowToProfile(p)])) } }
     const order = enrichOrder(row, row.pharmacies, items, profileMap)
     return { data: order, error: null }
   } catch (err) { const message = err instanceof Error ? err.message : 'Erreur récupération commande'; return { data: null, error: message } }

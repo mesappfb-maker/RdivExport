@@ -184,7 +184,6 @@ function mapRowToProduct(row: NonNullable<RequisitionItemRowWithProduct['product
 function mapRowToProfile(row: { id: UUID; full_name: string; email: string; phone: string | null; role: string; pharmacy_id: UUID | null; avatar_url: string | null; is_active: boolean; created_at: string; updated_at: string }): Profile {
   return {
     id: row.id,
-    user_id: row.user_id,
     full_name: row.full_name,
     email: row.email,
     phone: row.phone ?? undefined,

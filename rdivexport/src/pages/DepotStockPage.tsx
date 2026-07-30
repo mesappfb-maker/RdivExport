@@ -4,7 +4,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { formatQuantity } from '@/utils/formatters'
 import type { Product } from '@/types'
 
 export default function DepotStockPage() {
