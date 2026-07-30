@@ -209,6 +209,7 @@ export function Layout({ children }: { children?: ReactNode }) {
               </svg>
             </div>
             <span className="text-lg font-bold text-gray-900">RdivExport</span>
+            <span className="text-[10px] text-gray-400">v1.0.0</span>
           </div>
 
           {/* Avatar + Déconnexion */}
@@ -269,8 +270,10 @@ export function Layout({ children }: { children?: ReactNode }) {
                 </button>
               )}
               <button onClick={() => setShowInstallBanner(false)}
-                className="rounded-lg bg-blue-500 px-2 py-1.5 text-xs font-medium text-white">
-                </button>
+                className="rounded-lg bg-blue-500 px-2 py-1.5 text-xs font-medium text-white"
+                aria-label="Fermer">
+                ✕
+              </button>
             </div>
           </div>
         </div>
