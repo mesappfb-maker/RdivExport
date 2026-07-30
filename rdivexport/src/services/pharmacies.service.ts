@@ -3,6 +3,7 @@
 
 import { supabase } from '@/lib/supabase'
 import type { Pharmacy } from '@/types'
+import type { UUID } from '@/types/database'
 
 // ─── Utilitaire interne ─────────────────────────────────────────────────────
 
