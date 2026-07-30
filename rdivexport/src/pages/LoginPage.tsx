@@ -34,6 +34,10 @@ export default function LoginPage() {
       }
       if (result.profile.role === 'main_requisitionist') {
         navigate('/admin', { replace: true })
+      } else if (result.profile.role === 'centralisateur') {
+        navigate('/centralisateur', { replace: true })
+      } else if (result.profile.role === 'depot_user') {
+        navigate('/depot/stock', { replace: true })
       } else {
         navigate('/dashboard', { replace: true })
       }

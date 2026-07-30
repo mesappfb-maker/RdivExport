@@ -11,38 +11,44 @@ export interface AppSettings {
   updated_at: string
 }
 
-const SETTINGS_CACHE = new Map<string, string>()
-let settingsLoaded = false
+let settingsCache: Record<string, string> = {}
+let cacheTimestamp = 0
+const CACHE_TTL = 10_000 // 10 secondes
 
-/** Charge tous les paramètres en cache */
-async function ensureSettingsLoaded(): Promise<void> {
-  if (settingsLoaded) return
+/** Charge tous les paramètres depuis Supabase */
+async function loadSettings(): Promise<Record<string, string>> {
   try {
-    const { data } = await supabase.from('app_settings').select('*')
+    const { data, error } = await supabase.from('app_settings').select('*')
+    if (error) return {}
+    const map: Record<string, string> = {}
     if (data) {
-      SETTINGS_CACHE.clear()
       for (const row of data) {
-        SETTINGS_CACHE.set(row.key, row.value)
+        map[row.key] = row.value
       }
     }
-    settingsLoaded = true
+    return map
   } catch {
-    // En cas d'erreur, on continue avec un cache vide
+    return {}
   }
 }
 
-/** Récupère un paramètre par sa clé */
+/** Récupère un paramètre par sa clé (avec cache court) */
 export async function getSetting(key: string): Promise<string | null> {
-  await ensureSettingsLoaded()
-  return SETTINGS_CACHE.get(key) ?? null
+  const now = Date.now()
+  // Recharger le cache s'il est expiré
+  if (now - cacheTimestamp > CACHE_TTL) {
+    settingsCache = await loadSettings()
+    cacheTimestamp = now
+  }
+  return settingsCache[key] ?? null
 }
 
-/** Récupère le numéro WhatsApp de destination configuré */
+/** Récupère le numéro WhatsApp de destination */
 export async function getWhatsAppNumber(): Promise<string | null> {
   return getSetting('whatsapp_destination_number')
 }
 
-/** Met à jour un paramètre (upsert) */
+/** Met à jour un paramètre (upsert) et invalide le cache */
 export async function setSetting(key: string, value: string): Promise<{ error: string | null }> {
   try {
     const { error } = await supabase
@@ -51,8 +57,9 @@ export async function setSetting(key: string, value: string): Promise<{ error: s
 
     if (error) return { error: error.message }
 
-    // Mettre à jour le cache
-    SETTINGS_CACHE.set(key, value)
+    // Invalider le cache immédiatement
+    cacheTimestamp = 0
+    settingsCache = {}
     return { error: null }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur lors de la mise à jour'
@@ -60,8 +67,8 @@ export async function setSetting(key: string, value: string): Promise<{ error: s
   }
 }
 
-/** Réinitialise le cache (utile après un changement) */
-export function resetSettingsCache(): void {
-  SETTINGS_CACHE.clear()
-  settingsLoaded = false
+/** Force le rechargement du cache */
+export function invalidateSettingsCache(): void {
+  cacheTimestamp = 0
+  settingsCache = {}
 }
