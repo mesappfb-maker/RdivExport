@@ -91,7 +91,7 @@ interface RequisitionRowWithJoins {
 interface RequisitionItemRowWithProduct {
   id: UUID
   requisition_id: UUID
-  product_id: UUID
+  product_id: UUID | null
   product_name: string
   quantity_requested: number
   quantity_delivered: number | null
@@ -258,7 +258,7 @@ export async function createRequisition(
     // 2. Préparer les lignes d'articles
     const itemsToInsert = input.items.map((item) => ({
       requisition_id: requisition.id,
-      product_id: item.product_id,
+      product_id: item.product_id && item.product_id.trim() !== '' ? item.product_id : null,
       product_name: item.product_name ?? null,
       quantity_requested: item.quantity_requested,
     }))
@@ -659,7 +659,7 @@ export async function getConsolidatedRequisitions(
   try {
     let query = supabase
       .from('requisition_items')
-      .select('*, requisitions!inner(*, pharmacies(*)), products!inner(*)')
+      .select('*, requisitions!inner(*, pharmacies(*)), products(*)')
       .order('created_at', { ascending: false })
 
     // Exclure les brouillons et les annulées
@@ -698,6 +698,7 @@ export async function getConsolidatedRequisitions(
       }
 
       const productId = typedRow.product_id
+      if (!productId) continue // Ignorer les produits saisis manuellement sans ID
       const productName = typedRow.products?.name ?? 'Produit inconnu'
       const productUnit = typedRow.products?.unit ?? undefined
       const existing = productMap.get(productId)
@@ -761,7 +762,7 @@ export async function getConsolidatedRequisitions(
  */
 export async function updateRequisitionItems(
   requisitionId: UUID,
-  items: Array<{ product_id: string; product_name?: string; quantity_requested: number }>,
+  items: Array<{ product_id: string | null; product_name?: string; quantity_requested: number }>,
   comment?: string
 ): Promise<{ data: Requisition | null; error: string | null }> {
   try {
@@ -793,7 +794,7 @@ export async function updateRequisitionItems(
     // 3. Insérer les nouveaux items
     const itemsToInsert = items.map((item) => ({
       requisition_id: requisitionId,
-      product_id: item.product_id,
+      product_id: item.product_id && item.product_id.trim() !== '' ? item.product_id : null,
       product_name: item.product_name ?? null,
       quantity_requested: item.quantity_requested,
     }))

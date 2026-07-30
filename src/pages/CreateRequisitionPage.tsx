@@ -79,7 +79,7 @@ export default function CreateRequisitionPage() {
       // et on s'appuie sur product_name pour l'historique
       if (insertError) {
         console.warn('[CreateRequisition] Impossible de créer le produit, utilisation du nom uniquement:', insertError.message)
-        productId = '' // sera traité comme null par Supabase
+        productId = '' // sera converti en null dans le service
       }
     }
 

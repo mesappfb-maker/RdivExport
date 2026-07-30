@@ -156,7 +156,7 @@ export interface RequisitionItem {
   id: UUID
   requisition_id: UUID
   requisition?: Requisition
-  product_id: UUID
+  product_id: UUID | null
   product?: Product
   product_name?: string
   quantity_requested: number
@@ -211,7 +211,7 @@ export interface AuditLog {
 export interface CreateRequisitionInput {
   pharmacy_id: UUID
   items: Array<{
-    product_id: UUID
+    product_id: UUID | null
     product_name?: string
     quantity_requested: number
   }>

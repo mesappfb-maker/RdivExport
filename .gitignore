@@ -1,2 +1,10 @@
-skills/
 node_modules/
+dist/
+skills/
+agent-ctx/
+tool-results/
+download/
+upload/
+worklog.md
+.env
+*.log

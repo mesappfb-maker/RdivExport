@@ -19,7 +19,7 @@ import type { RequisitionStatus } from '@/types'
 
 interface EditItem {
   id: string
-  product_id: string
+  product_id: string | null
   product_name: string
   quantity: number
   unit?: string
