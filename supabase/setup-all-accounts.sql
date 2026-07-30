@@ -102,7 +102,7 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- 6. BIAYI → biayi@ladivine.com / Div@byi
 INSERT INTO public.profiles (id, user_id, full_name, email, phone, role, pharmacy_id, is_active)
-SELECT u.id, u.id, 'BIAYI', u.email, NULL, 'pharmacy_user',
+SELECT u.id, u.id, 'Pharmacie La Divine Biayi', u.email, NULL, 'pharmacy_user',
   (SELECT id FROM public.pharmacies WHERE code = 'BIY' LIMIT 1), true
 FROM auth.users u WHERE u.email = 'biayi@ladivine.com'
 ON CONFLICT (id) DO UPDATE SET

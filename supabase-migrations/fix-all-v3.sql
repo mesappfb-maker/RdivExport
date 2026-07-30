@@ -38,5 +38,10 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
--- ─── 4. Vérification ────────────────────────────────────────────────────────────
+-- ─── 4. Corriger le nom du profil BIAYI ────────────────────────────────────────
+UPDATE public.profiles
+SET full_name = 'Pharmacie La Divine Biayi', updated_at = now()
+WHERE email = 'biayi@ladivine.com' AND (full_name IS NULL OR full_name = 'BIAYI');
+
+-- ─── 5. Vérification ────────────────────────────────────────────────────────────
 SELECT 'Migration v3 terminée avec succès' AS status;
