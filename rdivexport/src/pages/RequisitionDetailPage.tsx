@@ -43,8 +43,18 @@ export default function RequisitionDetailPage() {
     setShowDeleteDialog(false)
     setDeleting(true)
     // Supprimer d'abord les items, puis la réquisition
-    await supabase.from('requisition_items').delete().eq('requisition_id', id)
-    await supabase.from('requisitions').delete().eq('id', id)
+    const { error: itemsError } = await supabase.from('requisition_items').delete().eq('requisition_id', id)
+    if (itemsError) {
+      setDeleting(false)
+      alert('Erreur lors de la suppression des articles : ' + itemsError.message)
+      return
+    }
+    const { error: reqError } = await supabase.from('requisitions').delete().eq('id', id)
+    if (reqError) {
+      setDeleting(false)
+      alert('Erreur lors de la suppression de la réquisition : ' + reqError.message)
+      return
+    }
     setDeleting(false)
     navigate(-1)
   }, [id, navigate])
