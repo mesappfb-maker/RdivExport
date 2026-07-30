@@ -12,6 +12,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { BackButton } from '@/components/BackButton'
 import { formatWhatsAppMessage, generateWhatsAppLink } from '@/utils/formatters'
 import { getWhatsAppNumber } from '@/services/settings.service'
+import { supabase } from '@/lib/supabase'
 import type { Product, Requisition } from '@/types'
 
 // --- Types locaux ------------------------------------------------------------
@@ -50,11 +51,31 @@ export default function CreateRequisitionPage() {
   }, [])
 
   // --- Ajouter un produit manuellement ----------------------------------------
-  const handleAddManualProduct = useCallback(() => {
+  const handleAddManualProduct = useCallback(async () => {
     const name = manualProductName.trim()
     if (!name) return
+
+    // Vérifier si un produit avec ce nom existe déjà dans la DB
+    const { data: existing } = await supabase
+      .from('products')
+      .select('id')
+      .ilike('name', name)
+      .limit(1)
+
+    const productId = existing && existing.length > 0
+      ? existing[0].id
+      : crypto.randomUUID()
+
+    // Si le produit n'existe pas, le créer dans la table products
+    if (!existing || existing.length === 0) {
+      await supabase.from('products').insert({
+        id: productId,
+        name: name,
+        main_depot_stock: 0,
+      })
+    }
+
     setItems((prev) => {
-      // Vérifier doublon par nom
       if (prev.some((i) => i.product_name.toLowerCase() === name.toLowerCase())) {
         return prev
       }
@@ -62,7 +83,7 @@ export default function CreateRequisitionPage() {
         ...prev,
         {
           id: crypto.randomUUID(),
-          product_id: 'manual-' + crypto.randomUUID(),
+          product_id: productId,
           product_name: name,
           quantity: 1,
         },
@@ -111,15 +132,11 @@ export default function CreateRequisitionPage() {
     const req = await createRequisition(
       {
         pharmacy_id: pharmacyId,
-        items: items.map((item) => {
-          // Produit manuel : utiliser un UUID par défaut et stocker le nom
-          const isManual = item.product_id.startsWith('manual-')
-          return {
-            product_id: isManual ? '00000000-0000-0000-0000-000000000000' : item.product_id,
-            product_name: item.product_name,
-            quantity_requested: item.quantity,
-          }
-        }),
+        items: items.map((item) => ({
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity_requested: item.quantity,
+        })),
         comment: comment.trim() || undefined,
       },
       profile.id
@@ -140,14 +157,11 @@ export default function CreateRequisitionPage() {
     const req = await createRequisition(
       {
         pharmacy_id: pharmacyId,
-        items: items.map((item) => {
-          const isManual = item.product_id.startsWith('manual-')
-          return {
-            product_id: isManual ? '00000000-0000-0000-0000-000000000000' : item.product_id,
-            product_name: item.product_name,
-            quantity_requested: item.quantity,
-          }
-        }),
+        items: items.map((item) => ({
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity_requested: item.quantity,
+        })),
         comment: comment.trim() || undefined,
       },
       profile.id
