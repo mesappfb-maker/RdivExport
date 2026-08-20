@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { KpiCard, StatSection, MiniBarChart, InsightCard, ProgressRing } from '@/components/StatsCharts'
+import { KpiCard, StatSection, MiniBarChart, InsightCard } from '@/components/StatsCharts'
 import { getDepotStats, type DepotStats } from '@/services/stats.service'
 import type { Product } from '@/types'
 

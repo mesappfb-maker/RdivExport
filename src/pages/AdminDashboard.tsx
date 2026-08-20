@@ -3,6 +3,7 @@
 // produits les plus demandés, performance par pharmacie, insights.
 
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useRequisitions } from '@/hooks/useRequisitions'
 import { getAllPharmacies } from '@/services/pharmacies.service'
 import { getAdminStats, type AdminStats } from '@/services/stats.service'
@@ -16,7 +17,7 @@ import type { RequisitionFilters } from '@/services/requisitions.service'
 const STATUS_FILTER_OPTIONS: Array<{ value: RequisitionStatus | ''; label: string }> = [
   { value: '', label: 'Tous les statuts' },
   { value: 'pending', label: 'En attente' },
-  { value: 'consolidated', label: 'Consolidee' },
+  { value: 'consolidated' as RequisitionStatus, label: 'Consolidee' },
   { value: 'validated', label: 'Validee' },
   { value: 'delivered', label: 'Livree' },
   { value: 'cancelled', label: 'Annulee' },
@@ -39,6 +40,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 export default function AdminDashboard() {
+  const navigate = useNavigate()
   const { requisitions, loading: reqLoading, error, fetchAllRequisitions } = useRequisitions()
 
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([])
@@ -120,16 +122,19 @@ export default function AdminDashboard() {
 
   const monthlyValues = stats?.monthlyTrend.map(m => m.count) ?? []
   const monthlyLabels = stats?.monthlyTrend.map(m => {
-    const [y, mo] = m.month.split('-')
+    const [, mo] = m.month.split('-')
     const months = ['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aou', 'Sep', 'Oct', 'Nov', 'Dec']
     return months[parseInt(mo) - 1]
   }) ?? []
 
   // Insights dynamiques
-  const insights: Array<{ type: 'info' | 'warning' | 'success' | 'tip'; title: string; description: string }> = []
+  const insights: Array<{ type: 'info' | 'warning' | 'success' | 'tip'; title: string; description: string; action?: { label: string; onClick: () => void } }> = []
   if (stats) {
-    if (stats.pendingCount > 5) {
-      insights.push({ type: 'warning', title: `${stats.pendingCount} requisitions en attente`, description: 'Un grand nombre de requisitions attendent traitement. Pensez à les consolider.' })
+    const pendingCount = stats.byStatus?.['pending'] ?? 0
+    if (pendingCount > 5) {
+      insights.push({ type: 'warning', title: `${pendingCount} requisitions en attente`, description: 'Un grand nombre de requisitions attendent traitement. Pensez à les consolider.', action: { label: 'Consolider', onClick: () => navigate('/admin/consolidation') } })
+    } else if (pendingCount > 0) {
+      insights.push({ type: 'info', title: `${pendingCount} requisition(s) en attente`, description: 'Des requisions attendent votre consolidation.', action: { label: 'Voir', onClick: () => navigate('/admin/consolidation') } })
     }
     if (stats.lowStockCount > 0) {
       insights.push({ type: 'warning', title: `${stats.lowStockCount} produit(s) en stock bas`, description: 'Certains produits ont atteint le seuil minimum. Alertez le depot.' })
@@ -139,7 +144,7 @@ export default function AdminDashboard() {
     } else if (stats.deliveryRate > 0 && stats.deliveryRate < 50) {
       insights.push({ type: 'info', title: `Taux de livraison : ${stats.deliveryRate}%`, description: 'Le taux de livraison est faible. Identifiez les goulots d\'etranglement.' })
     }
-    if (stats.weekRequisitions > stats.todayRequisitions * 3 && stats.todayRequisitions === 0) {
+    if (stats.weekRequisitions > 0 && stats.todayRequisitions === 0) {
       insights.push({ type: 'tip', title: 'Aucune requisition aujourd\'hui', description: 'Les pharmacies n\'ont pas encore envoye de requisitions. C\'est peut-etre normal.' })
     }
     if (insights.length === 0) {
@@ -176,7 +181,7 @@ export default function AdminDashboard() {
             />
             <KpiCard
               label="En attente"
-              value={stats?.pendingCount ?? 0}
+              value={stats?.byStatus?.['pending'] ?? 0}
               color="yellow"
               icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
             />
@@ -193,6 +198,13 @@ export default function AdminDashboard() {
               icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>}
             />
           </div>
+
+          {/* Lien vers statistiques avancées */}
+          <button onClick={() => navigate('/admin/stats')}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
+            Statistiques avancees et bonnes pratiques
+          </button>
         </div>
       </div>
 

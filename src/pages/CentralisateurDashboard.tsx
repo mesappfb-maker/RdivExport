@@ -5,7 +5,7 @@ import { useEffect, useCallback, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { RequisitionCard } from '@/components/RequisitionCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { KpiCard, StatSection, Sparkline, MiniBarChart, InsightCard, ProgressRing } from '@/components/StatsCharts'
+import { KpiCard, StatSection, Sparkline, MiniBarChart, InsightCard } from '@/components/StatsCharts'
 import { getCentralisateurStats, type CentralisateurStats } from '@/services/stats.service'
 import type { Requisition, Pharmacy } from '@/types'
 
@@ -159,14 +159,14 @@ export default function CentralisateurDashboard() {
           <div className="space-y-2">{insights.map((ins, i) => <InsightCard key={i} {...ins} />)}</div>
         )}
 
-        {/* Tendance */
+        {/* Tendance */}
         {!statsLoading && weeklyValues.length > 0 && (
           <StatSection title="Tendance hebdomadaire" subtitle="8 dernieres semaines">
             <Sparkline data={weeklyValues} labels={weeklyLabels} color="#6366f1" showDots />
           </StatSection>
         )}
 
-        {/* Par pharmacie */
+        {/* Par pharmacie */}
         {!statsLoading && pharmacyBarData.length > 0 && (
           <StatSection title="Requisitions par pharmacie" subtitle={`${pharmacies.length} pharmacies` }>
             <MiniBarChart data={pharmacyBarData} />

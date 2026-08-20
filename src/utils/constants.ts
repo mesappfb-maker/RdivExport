@@ -29,6 +29,7 @@ export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const
 export const STATUS_LABELS: Record<RequisitionStatus, string> = {
   draft: 'Brouillon',
   pending: 'En attente',
+  consolidated: 'Consolidée',
   validated: 'Validée',
   delivered: 'Livrée',
   cancelled: 'Annulée',
@@ -40,6 +41,7 @@ export const STATUS_LABELS: Record<RequisitionStatus, string> = {
 export const STATUS_COLORS: Record<RequisitionStatus, string> = {
   draft: 'bg-gray-100 text-gray-700 border-gray-300',
   pending: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+  consolidated: 'bg-indigo-100 text-indigo-700 border-indigo-300',
   validated: 'bg-blue-100 text-blue-700 border-blue-300',
   delivered: 'bg-green-100 text-green-700 border-green-300',
   cancelled: 'bg-red-100 text-red-700 border-red-300',
@@ -49,6 +51,7 @@ export const STATUS_COLORS: Record<RequisitionStatus, string> = {
 export const STATUS_DOT_COLORS: Record<RequisitionStatus, string> = {
   draft: 'bg-gray-400',
   pending: 'bg-yellow-400',
+  consolidated: 'bg-indigo-400',
   validated: 'bg-blue-400',
   delivered: 'bg-green-400',
   cancelled: 'bg-red-400',
@@ -58,6 +61,7 @@ export const STATUS_DOT_COLORS: Record<RequisitionStatus, string> = {
 export const STATUS_TEXT_COLORS: Record<RequisitionStatus, string> = {
   draft: 'text-gray-600',
   pending: 'text-yellow-600',
+  consolidated: 'text-indigo-600',
   validated: 'text-blue-600',
   delivered: 'text-green-600',
   cancelled: 'text-red-600',

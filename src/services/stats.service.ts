@@ -88,7 +88,7 @@ export async function getAdminStats(): Promise<AdminStats> {
   const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
 
   const [reqRes, itemRes, productRes, pharmRes, userRes] = await Promise.all([
-    supabase.from('requisitions').select('*, pharmacies(name)').ne('status', 'draft').order('created_at', { ascending: false }),
+    supabase.from('requisitions').select('*, pharmacies(name)').order('created_at', { ascending: false }),
     supabase.from('requisition_items').select('product_id, quantity_requested, products(name)'),
     supabase.from('products').select('id, name, main_depot_stock, min_stock_threshold, is_active'),
     supabase.from('pharmacies').select('id, name, is_active'),
@@ -101,15 +101,18 @@ export async function getAdminStats(): Promise<AdminStats> {
   const pharmacies = (pharmRes.data ?? []) as any[]
   const users = (userRes.data ?? []) as any[]
 
+  // Filter out drafts
+  const nonDraftReqs = reqs.filter((r: any) => r.status !== 'draft')
+
   // By status
   const byStatus: Record<string, number> = {}
-  for (const r of reqs) {
+  for (const r of nonDraftReqs) {
     byStatus[r.status] = (byStatus[r.status] || 0) + 1
   }
 
   // By pharmacy
   const pharmMap = new Map<string, { total: number; pending: number; delivered: number }>()
-  for (const r of reqs) {
+  for (const r of nonDraftReqs) {
     const pid = r.pharmacy_id
     if (!pharmMap.has(pid)) pharmMap.set(pid, { total: 0, pending: 0, delivered: 0 })
     const entry = pharmMap.get(pid)!
@@ -135,7 +138,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     entry.requestCount++
   }
   const topProducts = Array.from(prodMap.entries())
-    .map(([productId, data]) => ({ productId, ...data }))
+    .map(([productId, data]) => ({ productId, productName: data.name, totalQty: data.totalQty, requestCount: data.requestCount }))
     .sort((a, b) => b.totalQty - a.totalQty)
     .slice(0, 10)
 
@@ -145,7 +148,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     const d = new Date(Date.now() - i * 7 * 86400000)
     weekMap.set(getWeekStart(d), 0)
   }
-  for (const r of reqs) {
+  for (const r of nonDraftReqs) {
     const wk = getWeekKey(r.created_at)
     if (weekMap.has(wk)) weekMap.set(wk, (weekMap.get(wk) ?? 0) + 1)
   }
@@ -158,7 +161,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     d.setMonth(d.getMonth() - i)
     monthMap.set(getMonthKey(d.toISOString()), 0)
   }
-  for (const r of reqs) {
+  for (const r of nonDraftReqs) {
     const mk = getMonthKey(r.created_at)
     if (monthMap.has(mk)) monthMap.set(mk, (monthMap.get(mk) ?? 0) + 1)
   }
@@ -166,7 +169,7 @@ export async function getAdminStats(): Promise<AdminStats> {
 
   // Delivery rate
   const delivered = byStatus['delivered'] || 0
-  const nonCancelled = reqs.filter(r => r.status !== 'cancelled').length
+  const nonCancelled = nonDraftReqs.filter(r => r.status !== 'cancelled').length
   const deliveryRate = nonCancelled > 0 ? Math.round((delivered / nonCancelled) * 100) : 0
 
   // Low stock
@@ -196,12 +199,8 @@ export async function getAdminStats(): Promise<AdminStats> {
 // ─── Pharmacy Stats ───────────────────────────────────────────────────────
 
 export async function getPharmacyStats(pharmacyId: UUID): Promise<PharmacyStats> {
-  const [reqRes, itemRes] = await Promise.all([
+  const [reqRes] = await Promise.all([
     supabase.from('requisitions').select('*').eq('pharmacy_id', pharmacyId).order('created_at', { ascending: false }),
-    supabase.from('requisition_items').select('product_id, product_name, quantity_requested, products(name, id)').eq('requisition_id',
-      // Subquery for requisition IDs of this pharmacy
-      `(SELECT id FROM requisitions WHERE pharmacy_id = '${pharmacyId}')`
-    ).is('requisition_id', null), // Fallback: load items separately
   ])
 
   const reqs = (reqRes.data ?? []) as any[]
@@ -233,7 +232,8 @@ export async function getPharmacyStats(pharmacyId: UUID): Promise<PharmacyStats>
 
   // Frequent products (for suggestions) — ordered by frequency
   const frequentProducts = Array.from(prodMap.values())
-    .sort((a, b) => b.frequency - a.frequency)
+    .map((v: any) => ({ productId: v.productId, productName: v.productName, count: v.frequency, totalQty: v.totalQty }))
+    .sort((a: any, b: any) => b.count - a.count)
     .slice(0, 8)
 
   // Monthly trend
@@ -270,11 +270,12 @@ export async function getPharmacyStats(pharmacyId: UUID): Promise<PharmacyStats>
 
 export async function getCentralisateurStats(): Promise<CentralisateurStats> {
   const [reqRes, pharmRes] = await Promise.all([
-    supabase.from('requisitions').select('*, pharmacies(name)').ne('status', 'draft').order('created_at', { ascending: false }),
+    supabase.from('requisitions').select('*, pharmacies(name)').order('created_at', { ascending: false }),
     supabase.from('pharmacies').select('id, name').eq('is_active', true),
   ])
 
   const reqs = (reqRes.data ?? []) as any[]
+  const nonDraftReqs = reqs.filter((r: any) => r.status !== 'draft')
   const pharmacies = (pharmRes.data ?? []) as any[]
 
   // Processing time (pending → delivered)
@@ -291,7 +292,7 @@ export async function getCentralisateurStats(): Promise<CentralisateurStats> {
   // By pharmacy
   const pharmMap = new Map<string, { total: number; pending: number }>()
   const pharmNameMap = new Map(pharmacies.map(p => [p.id, p.name]))
-  for (const r of reqs) {
+  for (const r of nonDraftReqs) {
     const pid = r.pharmacy_id
     if (!pharmMap.has(pid)) pharmMap.set(pid, { total: 0, pending: 0 })
     const entry = pharmMap.get(pid)!
@@ -302,7 +303,7 @@ export async function getCentralisateurStats(): Promise<CentralisateurStats> {
     pharmacyId,
     pharmacyName: pharmNameMap.get(pharmacyId) ?? 'Inconnue',
     ...counts,
-  })).sort((a, b) => b.total - a.total)
+  })).sort((a: any, b: any) => b.total - a.total)
 
   // Weekly trend
   const weekMap = new Map<string, number>()
@@ -310,7 +311,7 @@ export async function getCentralisateurStats(): Promise<CentralisateurStats> {
     const d = new Date(Date.now() - i * 7 * 86400000)
     weekMap.set(getWeekStart(d), 0)
   }
-  for (const r of reqs) {
+  for (const r of nonDraftReqs) {
     const wk = getWeekKey(r.created_at)
     if (weekMap.has(wk)) weekMap.set(wk, (weekMap.get(wk) ?? 0) + 1)
   }
@@ -359,7 +360,7 @@ export async function getDepotStats(): Promise<DepotStats> {
   const reqMap = new Map<string, { productName: string; totalRequested: number; unit?: string }>()
   for (const item of items) {
     const pid = item.product_id ?? ''
-    if (!reqMap.has(pid)) reqMap.set(pid, { productName: item.products?.name ?? 'Inconnu', totalRequested: 0, unit: item.products?.unit })
+    if (!reqMap.has(pid)) reqMap.set(pid, { productName: (item.products as any)?.name ?? 'Inconnu', totalRequested: 0, unit: (item.products as any)?.unit })
     reqMap.get(pid)!.totalRequested += item.quantity_requested ?? 0
   }
   const mostRequested = Array.from(reqMap.entries())
@@ -402,12 +403,12 @@ export async function getPharmacySuggestions(pharmacyId: UUID): Promise<Array<{
     .from('requisitions')
     .select('id, created_at')
     .eq('pharmacy_id', pharmacyId)
-    .ne('status', 'draft')
     .order('created_at', { ascending: false })
 
   if (!reqs || reqs.length === 0) return []
 
-  const reqIds = reqs.map(r => r.id)
+  const nonDraftReqs = reqs.filter((r: any) => r.status !== 'draft')
+  const reqIds = nonDraftReqs.map((r: any) => r.id)
   const { data: items } = await supabase
     .from('requisition_items')
     .select('product_id, product_name, quantity_requested, created_at, products(name, unit)')
@@ -421,8 +422,8 @@ export async function getPharmacySuggestions(pharmacyId: UUID): Promise<Array<{
     const pid = item.product_id ?? 'manual'
     if (!prodMap.has(pid)) {
       prodMap.set(pid, {
-        product_name: item.products?.name ?? item.product_name ?? 'Produit',
-        frequency: 0, lastOrdered: '', totalQty: 0, unit: item.products?.unit,
+        product_name: (item.products as any)?.name ?? item.product_name ?? 'Produit',
+        frequency: 0, lastOrdered: '', totalQty: 0, unit: (item.products as any)?.unit,
       })
     }
     const entry = prodMap.get(pid)!

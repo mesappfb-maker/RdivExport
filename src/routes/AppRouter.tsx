@@ -21,6 +21,7 @@ import SettingsPage from '@/pages/SettingsPage'
 import DepotStockPage from '@/pages/DepotStockPage'
 import DepotProductsPage from '@/pages/DepotProductsPage'
 import CentralisateurDashboard from '@/pages/CentralisateurDashboard'
+import StatsPage from '@/pages/StatsPage'
 
 export default function AppRouter() {
   return (
@@ -47,6 +48,7 @@ export default function AppRouter() {
           <Route path="/admin/delivery" element={<ProtectedRoute><Layout><DeliveryListPage /></Layout></ProtectedRoute>} />
           <Route path="/admin/delivery/:id" element={<ProtectedRoute><Layout><DeliveryChecklistPage /></Layout></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute><Layout><SettingsPage /></Layout></ProtectedRoute>} />
+          <Route path="/admin/stats" element={<ProtectedRoute><Layout><StatsPage /></Layout></ProtectedRoute>} />
 
           {/* Routes dépôt */}
           <Route path="/depot/stock" element={<ProtectedRoute><Layout><DepotStockPage /></Layout></ProtectedRoute>} />

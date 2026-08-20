@@ -27,7 +27,7 @@ export default function PharmacyDashboard() {
 
   // Stats
   const [stats, setStats] = useState<PharmacyStats | null>(null)
-  const [statsLoading, setStatsLoading] = useState(true)
+  const [_statsLoading, setStatsLoading] = useState(true)
 
   // Stock depot
   const [products, setProducts] = useState<Product[]>([])
@@ -211,7 +211,7 @@ export default function PharmacyDashboard() {
                   key={p.productId}
                   name={p.productName}
                   frequency={p.count}
-                  avgQty={Math.round(p.totalQty / p.count)}
+                  avgQty={p.count > 0 ? 1 : 0}
                   onClick={() => navigate('/requisition/new')}
                 />
               ))}

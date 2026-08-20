@@ -11,6 +11,7 @@ export type Role = 'pharmacy_user' | 'main_requisitionist' | 'centralisateur' | 
 export type RequisitionStatus =
   | 'draft'
   | 'pending'
+  | 'consolidated'
   | 'validated'
   | 'delivered'
   | 'cancelled'
