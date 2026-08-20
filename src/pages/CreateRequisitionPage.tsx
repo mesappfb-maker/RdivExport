@@ -14,6 +14,8 @@ import { BackButton } from '@/components/BackButton'
 import { formatWhatsAppMessage, generateWhatsAppLink } from '@/utils/formatters'
 import { getWhatsAppNumber } from '@/services/settings.service'
 import { supabase } from '@/lib/supabase'
+import { getPharmacySuggestions } from '@/services/stats.service'
+import { SuggestionChip } from '@/components/StatsCharts'
 import type { Product, Requisition } from '@/types'
 
 // --- Types locaux ------------------------------------------------------------
@@ -49,10 +51,29 @@ export default function CreateRequisitionPage() {
   const [manualProductName, setManualProductName] = useState('')
   const [loadingDraft, setLoadingDraft] = useState(false)
 
-  // Charger le numéro WhatsApp configuré
+  // Suggestions basees sur l'historique
+  const [suggestions, setSuggestions] = useState<Array<{
+    product_id: string
+    product_name: string
+    frequency: number
+    lastOrdered: string
+    unit?: string
+    avgQty: number
+  }>>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true)
+
+  // Charger le numéro WhatsApp configuré + suggestions
   useEffect(() => {
     getWhatsAppNumber().then(setWhatsappNameDestNumber)
-  }, [])
+    if (pharmacyId) {
+      getPharmacySuggestions(pharmacyId as any)
+        .then(setSuggestions)
+        .catch(() => {})
+        .finally(() => setSuggestionsLoading(false))
+    } else {
+      setSuggestionsLoading(false)
+    }
+  }, [pharmacyId])
 
   // --- Reprise d'un brouillon existant ----------------------------------------
   useEffect(() => {
@@ -123,7 +144,19 @@ export default function CreateRequisitionPage() {
   const handleProductSelect = useCallback((product: Product) => {
     setItems((prev) => {
       if (prev.some((i) => i.product_id && i.product_id === product.id)) return prev
-      return [...prev, { id: crypto.randomUUID(), product_id: product.id, product_name: product.name, quantity: 1, unit: product.unit }]
+      const suggestion = suggestions.find(s => s.product_id === product.id)
+      const qty = suggestion ? suggestion.avgQty : 1
+      return [...prev, { id: crypto.randomUUID(), product_id: product.id, product_name: product.name, quantity: qty, unit: product.unit }]
+    })
+  }, [suggestions])
+
+  const handleSuggestionClick = useCallback((sug: typeof suggestions[0]) => {
+    setItems((prev) => {
+      if (prev.some((i) => i.product_name.toLowerCase() === sug.product_name.toLowerCase())) return prev
+      return [...prev, {
+        id: crypto.randomUUID(), product_id: sug.product_id, product_name: sug.product_name,
+        quantity: sug.avgQty, unit: sug.unit,
+      }]
     })
   }, [])
 
@@ -276,6 +309,26 @@ export default function CreateRequisitionPage() {
             <p className="text-xs font-medium text-blue-700">
               Vous modifiez un brouillon existant. Enregistrez pour sauvegarder ou envoyez pour soumettre au centralisateur.
             </p>
+          </div>
+        )}
+
+        {/* Suggestions basees sur l'historique */}
+        {!isResumingDraft && !suggestionsLoading && suggestions.length > 0 && items.length === 0 && (
+          <div className="mb-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-purple-400">Suggestions rapides</p>
+            <p className="mb-2 text-[11px] text-gray-400">Basees sur vos commandes precedentes</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {suggestions.slice(0, 6).map(s => (
+                <SuggestionChip
+                  key={s.product_id}
+                  name={s.product_name}
+                  frequency={s.frequency}
+                  avgQty={s.avgQty}
+                  unit={s.unit}
+                  onClick={() => handleSuggestionClick(s)}
+                />
+              ))}
+            </div>
           </div>
         )}
 
