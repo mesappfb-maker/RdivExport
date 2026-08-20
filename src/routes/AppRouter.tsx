@@ -6,6 +6,8 @@ import { Layout } from '@/components/Layout'
 
 // Pages
 import LoginPage from '@/pages/LoginPage'
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
+import ResetPasswordPage from '@/pages/ResetPasswordPage'
 import PharmacyDashboard from '@/pages/PharmacyDashboard'
 import CreateRequisitionPage from '@/pages/CreateRequisitionPage'
 import RequisitionDetailPage from '@/pages/RequisitionDetailPage'
@@ -26,6 +28,8 @@ export default function AppRouter() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Routes pharmacy_user */}
           <Route path="/dashboard" element={<ProtectedRoute><Layout><PharmacyDashboard /></Layout></ProtectedRoute>} />

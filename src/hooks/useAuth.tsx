@@ -166,6 +166,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        // Bloquer les comptes désactivés
+        if (!profile.is_active) {
+          await authService.logout()
+          dispatch({
+            type: 'AUTH_INIT_FAILURE',
+            payload: 'Votre compte a été désactivé. Contactez l\'administrateur.',
+          })
+          return
+        }
+
         dispatch({
           type: 'AUTH_INIT_SUCCESS',
           payload: { user: session.user, profile },
@@ -193,11 +203,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { profile } = await authService.getCurrentProfile(
             session.user.id as string
           )
-          if (profile) {
+          if (profile && profile.is_active) {
             dispatch({
               type: 'AUTH_INIT_SUCCESS',
               payload: { user: session.user, profile },
             })
+          } else {
+            // Profil introuvable ou désactivé
+            await authService.logout()
+            dispatch({ type: 'LOGOUT_SUCCESS' })
           }
         } else {
           dispatch({ type: 'LOGOUT_SUCCESS' })

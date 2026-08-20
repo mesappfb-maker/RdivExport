@@ -1,6 +1,7 @@
 // ─── RdivExport – Route protégée ───────────────────────────────────────────
-// Vérifie l'authentification avant d'accorder l'accès aux routes protégées.
-// Tous les utilisateurs authentifiés peuvent accéder à toutes les pages.
+// Vérifie l'authentification ET l'activation du compte avant d'accorder l'accès.
+// Les comptes désactivés (is_active = false) sont redirigés vers la page de connexion
+// avec un message d'erreur explicite.
 
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
@@ -23,6 +24,21 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!state.user || !state.profile) {
     return <Navigate to="/login" state={{ from: currentPath }} replace />
+  }
+
+  // Bloquer les comptes désactivés
+  if (!state.profile.is_active) {
+    return (
+      <Navigate
+        to="/login"
+        state={{
+          from: currentPath,
+          disabledAccount: true,
+          message: 'Votre compte a été désactivé. Contactez l\'administrateur.',
+        }}
+        replace
+      />
+    )
   }
 
   return <>{children}</>

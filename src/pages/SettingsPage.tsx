@@ -1,5 +1,8 @@
 // --- RdivExport - Page Paramètres -----------------------------------------
-// Admin : WhatsApp, comptes utilisateurs, pharmacies, création de comptes.
+// Admin : WhatsApp, comptes utilisateurs, pharmacies, création/suppression de comptes.
+// v1.1 : gestion robuste des comptes - création avec vérification doublon,
+//        suppression réelle (profile + tentative Supabase Admin API),
+//        réinitialisation mot de passe avec redirectTo correct.
 
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
@@ -53,11 +56,15 @@ export default function SettingsPage() {
   const [newRole, setNewRole] = useState('pharmacy_user')
   const [newPharmacyId, setNewPharmacyId] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
   const [creating, setCreating] = useState(false)
+
+  // Suppression étendue
+  const [deleteStep, setDeleteStep] = useState<'' | 'profile' | 'auth' | 'done' | 'auth-skipped'>('')
 
   const flash = useCallback((type: 'success' | 'error', text: string) => {
     setActionMsg({ type, text })
-    setTimeout(() => setActionMsg(null), 5000)
+    setTimeout(() => setActionMsg(null), 6000)
   }, [])
 
   useEffect(() => {
@@ -108,7 +115,7 @@ export default function SettingsPage() {
     } else {
       setWhatsappNameError(result.error)
       if (result.error.includes("n'existe pas")) {
-        flash('error', 'La table app_settings n\'existe pas. Exécutez la migration SQL.')
+        flash('error', "La table app_settings n'existe pas. Exécutez la migration SQL.")
       }
     }
   }, [whatsappNumber, flash])
@@ -126,6 +133,7 @@ export default function SettingsPage() {
     setTogglingId(null)
   }, [flash])
 
+  // --- Suppression de compte (réelle) ---
   const handleDeleteUser = useCallback(async () => {
     if (!deleteTarget || !deleteReason.trim()) {
       flash('error', 'Veuillez indiquer la raison de la suppression.')
@@ -136,32 +144,70 @@ export default function SettingsPage() {
       return
     }
     setDeleting(true)
+    setDeleteStep('profile')
+
+    // 1. Supprimer le profil (soft delete : marquer is_active=false et renommer)
     const { error: delError } = await supabase
       .from('profiles')
-      .update({ is_active: false, full_name: `[Supprimé] ${deleteTarget.full_name}` })
+      .update({ is_active: false, full_name: `[Supprimé] ${deleteTarget.full_name}`, updated_at: new Date().toISOString() })
       .eq('id', deleteTarget.id)
+
     if (delError) {
-      flash('error', 'Erreur: ' + delError.message)
-    } else {
-      flash('success', 'Compte supprimé.')
-      setProfiles((prev) =>
-        prev.map((p) =>
-          p.id === deleteTarget.id ? { ...p, is_active: false, full_name: `[Supprimé] ${p.full_name}` } : p
-        )
-      )
+      flash('error', 'Erreur suppression profil: ' + delError.message)
+      setDeleting(false)
+      setDeleteStep('')
+      return
     }
+
+    // 2. Tenter de supprimer l'utilisateur dans Supabase Auth
+    //    Cela nécessite l'Admin API (service_role key) ou une Edge Function.
+    //    On tente via le client admin si disponible, sinon on informe l'admin.
+    setDeleteStep('auth')
+    let authDeleted = false
+
+    try {
+      // On appelle une Edge Function dédiée "admin-delete-user"
+      const { data, error: fnError } = await supabase.functions.invoke('admin-delete-user', {
+        body: { user_id: deleteTarget.id },
+      })
+      if (!fnError && data?.success) {
+        authDeleted = true
+      }
+    } catch {
+      // Edge function non disponible — ce n'est pas bloquant
+    }
+
+    if (!authDeleted) {
+      setDeleteStep('auth-skipped')
+      flash('success', `Compte de ${deleteTarget.full_name} désactivé. Pour libérer l'email, exécutez la migration SQL v4 (suppression Auth).`)
+    } else {
+      setDeleteStep('done')
+      flash('success', `Compte de ${deleteTarget.full_name} supprimé complètement.`)
+    }
+
+    // 3. Mettre à jour la liste
+    setProfiles((prev) =>
+      prev.map((p) =>
+        p.id === deleteTarget.id ? { ...p, is_active: false, full_name: `[Supprimé] ${p.full_name}` } : p
+      )
+    )
+
     setDeleting(false)
     setDeleteTarget(null)
     setDeleteReason('')
+    setTimeout(() => setDeleteStep(''), 2000)
   }, [deleteTarget, deleteReason, profile, flash])
 
+  // --- Réinitialisation mot de passe ---
   const handleResetPassword = useCallback(async (email: string, name: string) => {
     flash('success', `Envoi du lien de réinitialisation à ${email}...`)
-    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
     if (error) {
       flash('error', `Erreur pour ${name}: ${error.message}`)
     } else {
-      flash('success', `Lien envoyé à ${email}`)
+      flash('success', `Lien de réinitialisation envoyé à ${email}. L'utilisateur doit vérifier ses emails.`)
     }
   }, [flash])
 
@@ -184,7 +230,6 @@ export default function SettingsPage() {
     } else {
       flash('success', 'Numéros de pharmacie mis à jour.')
       setEditPharmacy(null)
-      // Recharger les données
       const { data } = await supabase.from('profiles').select('*, pharmacies(*)').order('full_name')
       if (data) setProfiles(data as Array<Profile & { pharmacy?: Pharmacy }>)
       const { data: pharmData } = await supabase.from('pharmacies').select('*').order('name')
@@ -200,67 +245,167 @@ export default function SettingsPage() {
     setPharmacySaving(false)
   }, [editPharmacy, editPhone, editWhatsapp, flash])
 
-  // --- Création de compte ---
+  // --- Création de compte (robuste) ---
   const handleCreateAccount = useCallback(async () => {
-    if (!newEmail.trim() || !newName.trim() || !newPassword.trim()) {
+    const trimmedEmail = newEmail.trim().toLowerCase()
+    const trimmedName = newName.trim()
+    const trimmedPassword = newPassword
+
+    // Validations
+    if (!trimmedEmail || !trimmedName || !trimmedPassword) {
       flash('error', 'Remplissez tous les champs obligatoires.')
       return
     }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      flash('error', "Format d'email invalide.")
+      return
+    }
+
+    if (trimmedPassword.length < 6) {
+      flash('error', 'Le mot de passe doit contenir au moins 6 caractères.')
+      return
+    }
+
+    if (trimmedPassword !== newPasswordConfirm) {
+      flash('error', 'Les deux mots de passe ne correspondent pas.')
+      return
+    }
+
     if (newRole === 'pharmacy_user' && !newPharmacyId) {
       flash('error', 'Sélectionnez une pharmacie pour ce compte.')
       return
     }
+
     setCreating(true)
+
     try {
-      // 1. Créer l'utilisateur dans Supabase Auth
+      // 1. Vérifier si l'email existe déjà dans les profils
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id, full_name, is_active')
+        .eq('email', trimmedEmail)
+        .maybeSingle()
+
+      if (existingProfile) {
+        if (existingProfile.is_active) {
+          flash('error', `Un compte actif existe déjà avec cet email (${existingProfile.full_name}). Utilisez la réinitialisation de mot de passe.`)
+          setCreating(false)
+          return
+        }
+        // Le profil existe mais est inactif (supprimé) → on le réactive
+        const reactivateUpdates: Record<string, unknown> = {
+          full_name: trimmedName,
+          role: newRole,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }
+        if (newPharmacyId) reactivateUpdates.pharmacy_id = newPharmacyId
+
+        const { error: reactError } = await supabase
+          .from('profiles')
+          .update(reactivateUpdates)
+          .eq('id', existingProfile.id)
+
+        if (reactError) {
+          flash('error', 'Profil inactif trouvé mais erreur de réactivation: ' + reactError.message)
+        } else {
+          // Tenter de mettre à jour le mot de passe dans Auth via le lien de reset
+          await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+            redirectTo: `${window.location.origin}/reset-password`,
+          })
+          flash('success', `Compte réactivé pour ${trimmedName}. Un lien de nouveau mot de passe a été envoyé à ${trimmedEmail}.`)
+          setNewEmail('')
+          setNewName('')
+          setNewPassword('')
+          setNewPasswordConfirm('')
+          setNewPharmacyId('')
+          setShowCreateAccount(false)
+          loadData()
+        }
+        setCreating(false)
+        return
+      }
+
+      // 2. Créer l'utilisateur dans Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newEmail.trim(),
-        password: newPassword,
+        email: trimmedEmail,
+        password: trimmedPassword,
         options: {
-          data: { full_name: newName.trim(), role: newRole },
+          data: { full_name: trimmedName, role: newRole },
         },
       })
+
       if (authError) {
-        flash('error', 'Erreur création compte: ' + authError.message)
+        // Gérer les erreurs courantes de façon claire
+        if (authError.message.includes('already registered') || authError.message.includes('already been registered')) {
+          flash('error', `Cet email est déjà enregistré dans le système d'authentification. Si le compte a été supprimé, exécutez la migration SQL v4 pour nettoyer l'utilisateur Auth, puis réessayez. Sinon, utilisez "Réinitialiser mdp".`)
+        } else {
+          flash('error', 'Erreur création compte: ' + authError.message)
+        }
         setCreating(false)
         return
       }
+
       if (!authData.user) {
-        flash('error', 'Erreur: utilisateur non créé.')
+        flash('error', "Erreur: l'utilisateur n'a pas été créé. Vérifiez que la confirmation email est activée dans Supabase Dashboard > Auth > Settings.")
         setCreating(false)
         return
       }
-      // 2. Mettre à jour le profil avec le rôle et la pharmacie
-      const updates: Record<string, unknown> = {
-        full_name: newName.trim(),
+
+      // 3. Mettre à jour ou créer le profil avec le rôle et la pharmacie
+      const profileUpdates: Record<string, unknown> = {
+        full_name: trimmedName,
+        email: trimmedEmail,
         role: newRole,
+        is_active: true,
         updated_at: new Date().toISOString(),
       }
-      if (newPharmacyId) updates.pharmacy_id = newPharmacyId
+      if (newPharmacyId) profileUpdates.pharmacy_id = newPharmacyId
 
-      const { error: profileError } = await supabase
+      // Essayer d'abord un update (au cas où le trigger a créé un profil basique)
+      let profileOk = false
+      const { error: updateError } = await supabase
         .from('profiles')
-        .update(updates)
+        .update(profileUpdates)
         .eq('id', authData.user.id)
 
-      if (profileError) {
-        flash('error', 'Compte créé mais erreur profil: ' + profileError.message)
+      if (!updateError) {
+        profileOk = true
       } else {
-        flash('success', `Compte ${newRole === 'centralisateur' ? 'centralisateur' : newRole} créé avec succès !`)
-        // Reset form
+        // Si l'update échoue (pas de ligne), essayer un insert
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            ...profileUpdates,
+            created_at: new Date().toISOString(),
+          })
+
+        if (insertError) {
+          flash('error', 'Compte Auth créé mais erreur profil: ' + insertError.message + '. Exécutez la migration SQL v4 pour ajouter la politique INSERT admin sur profiles.')
+          setCreating(false)
+          return
+        }
+        profileOk = true
+      }
+
+      if (profileOk) {
+        const roleLabel = ROLE_LABELS[newRole] ?? newRole
+        flash('success', `Compte ${roleLabel} créé avec succès pour ${trimmedName} (${trimmedEmail}).`)
         setNewEmail('')
         setNewName('')
         setNewPassword('')
+        setNewPasswordConfirm('')
         setNewPharmacyId('')
         setShowCreateAccount(false)
-        // Recharger
         loadData()
       }
     } catch (err) {
       flash('error', 'Erreur: ' + (err instanceof Error ? err.message : 'Inconnue'))
     }
     setCreating(false)
-  }, [newEmail, newName, newRole, newPharmacyId, newPassword, flash, loadData])
+  }, [newEmail, newName, newRole, newPharmacyId, newPassword, newPasswordConfirm, flash, loadData])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -304,7 +449,7 @@ export default function SettingsPage() {
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold text-gray-900">Comptes utilisateurs</h2>
-                <p className="text-xs text-gray-500">Activez, désactivez ou supprimez les comptes.</p>
+                <p className="text-xs text-gray-500">Créez, activez, désactivez ou supprimez les comptes.</p>
               </div>
               <button onClick={() => setShowCreateAccount(true)}
                 className="flex h-9 items-center gap-1.5 rounded-xl bg-blue-600 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700">
@@ -338,12 +483,11 @@ export default function SettingsPage() {
                         <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform ${p.is_active ? 'translate-x-5' : 'translate-x-0'}`} />
                       </button>
                     </div>
-                    <div className="mt-2 flex gap-2 pl-12">
+                    <div className="mt-2 flex flex-wrap gap-2 pl-12">
                       <button onClick={() => handleResetPassword(p.email, p.full_name)}
                         className="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 transition-colors hover:bg-gray-50">
                         Réinitialiser mdp
                       </button>
-                      {/* Modifier les numéros de la pharmacie */}
                       {p.pharmacy_id && (
                         <button onClick={() => openEditPharmacy(p.pharmacy!)}
                           className="rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-medium text-blue-600 transition-colors hover:bg-blue-50">
@@ -394,7 +538,7 @@ export default function SettingsPage() {
       {/* Dialog de suppression avec justification */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setDeleteTarget(null); setDeleteReason('') }} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setDeleteTarget(null); setDeleteReason(''); setDeleteStep('') }} />
           <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
               <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -403,17 +547,31 @@ export default function SettingsPage() {
             </div>
             <h2 className="mb-1 text-lg font-semibold text-gray-900">Supprimer le compte</h2>
             <p className="mb-4 text-sm text-gray-600">Compte de <strong>{deleteTarget.full_name}</strong> ({deleteTarget.email})</p>
+            <p className="mb-3 rounded-lg bg-amber-50 border border-amber-200 p-2 text-xs text-amber-800">
+              Le compte sera désactivé. Pour pouvoir recréer un compte avec le même email, vous devrez exécuter la migration SQL v4 après la suppression.
+            </p>
             <div className="mb-4">
               <label className="mb-1 block text-xs font-medium text-gray-600">Raison de la suppression *</label>
               <textarea value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="Indiquez la raison..." rows={3}
                 className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" />
             </div>
+            {deleting && deleteStep && (
+              <div className="mb-3 flex items-center gap-2 text-xs text-gray-500">
+                <LoadingSpinner size="sm" />
+                <span>{
+                  deleteStep === 'profile' ? 'Désactivation du profil...' :
+                  deleteStep === 'auth' ? 'Tentative de suppression Auth...' :
+                  deleteStep === 'done' ? 'Suppression complète !' :
+                  'Profil désactivé. Suppression Auth non disponible.'
+                }</span>
+              </div>
+            )}
             <div className="flex flex-col gap-3 sm:flex-row-reverse sm:justify-end">
               <button onClick={handleDeleteUser} disabled={deleting || !deleteReason.trim()}
                 className="flex h-11 items-center justify-center rounded-xl bg-red-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60">
-                {deleting ? 'Suppression...' : 'Supprimer'}
+                {deleting ? 'Suppression...' : 'Supprimer le compte'}
               </button>
-              <button onClick={() => { setDeleteTarget(null); setDeleteReason('') }}
+              <button onClick={() => { setDeleteTarget(null); setDeleteReason(''); setDeleteStep('') }}
                 className="flex h-11 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50">
                 Annuler
               </button>
@@ -458,7 +616,7 @@ export default function SettingsPage() {
       {showCreateAccount && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreateAccount(false)} />
-          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h2 className="mb-4 text-lg font-semibold text-gray-900">Créer un compte</h2>
             <div className="space-y-3">
               <div>
@@ -474,6 +632,11 @@ export default function SettingsPage() {
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">Mot de passe *</label>
                 <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Minimum 6 caractères"
+                  className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Confirmer le mot de passe *</label>
+                <input type="password" value={newPasswordConfirm} onChange={(e) => setNewPasswordConfirm(e.target.value)} placeholder="Retapez le mot de passe"
                   className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
               </div>
               <div>
@@ -497,7 +660,7 @@ export default function SettingsPage() {
             <div className="mt-5 flex flex-col gap-3 sm:flex-row-reverse sm:justify-end">
               <button onClick={handleCreateAccount} disabled={creating}
                 className="flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60">
-                {creating ? 'Création...' : 'Créer le compte'}
+                {creating ? <><LoadingSpinner size="sm" /> Création...</> : 'Créer le compte'}
               </button>
               <button onClick={() => setShowCreateAccount(false)}
                 className="flex h-11 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50">

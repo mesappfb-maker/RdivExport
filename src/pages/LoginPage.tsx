@@ -1,14 +1,15 @@
 // --- RdivExport - Login Page ------------------------------------------------
 // Page de connexion avec identifiants email/mot de passe.
 
-import { useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useCallback, useEffect } from 'react'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import * as authService from '@/services/auth.service'
 import { APP_NAME } from '@/utils/constants'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,6 +17,17 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // Afficher un message si l'utilisateur a été redirigé (compte désactivé)
+  useEffect(() => {
+    const state = location.state as { disabledAccount?: boolean; message?: string } | null
+    if (state?.disabledAccount) {
+      setError(state.message ?? 'Votre compte a été désactivé. Contactez l\'administrateur.')
+      // Nettoyer le state pour ne pas le réafficher au rechargement
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
+
+  // Vérifier aussi si le profil est inactif après login
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault()
@@ -32,6 +44,15 @@ export default function LoginPage() {
         setError(result.error ?? 'Erreur lors de la connexion.')
         return
       }
+
+      // Vérifier que le compte est actif
+      if (!result.profile.is_active) {
+        // Déconnecter l'utilisateur
+        await authService.logout()
+        setError('Votre compte a été désactivé. Contactez l\'administrateur.')
+        return
+      }
+
       if (result.profile.role === 'main_requisitionist') {
         navigate('/admin', { replace: true })
       } else if (result.profile.role === 'centralisateur') {
@@ -106,7 +127,13 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-gray-400">{APP_NAME} v1.0.0</p>
+        <div className="mt-4 text-center">
+          <Link to="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+            Mot de passe oublié ?
+          </Link>
+        </div>
+
+        <p className="mt-4 text-center text-xs text-gray-400">{APP_NAME} v1.0.0</p>
       </div>
     </div>
   )
